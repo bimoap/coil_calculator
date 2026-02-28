@@ -117,16 +117,16 @@ def generate_cross_section_svg(res, a_mm, b_max_mm, plate_margin_mm, cooling_pla
 
         /* Dark Mode Override */
         @media (prefers-color-scheme: dark) {{
-            .cu {{ fill: #C88343; }} /* Brighter copper */
-            .al {{ fill: #606064; }} /* Darker aluminum */
-            .epoxy {{ fill: #303030; }} /* Dark gray resin */
-            .insul {{ fill: #B3A95B; }} /* Muted fiberglass */
+            .cu {{ fill: #C88343; }}
+            .al {{ fill: #606064; }}
+            .epoxy {{ fill: #303030; }}
+            .insul {{ fill: #B3A95B; }}
             .mold-line {{ stroke: #FF5555; }}
             .box-border {{ stroke: #E0E0E0; }}
             .dim-line {{ stroke: #E0E0E0; }}
             .dim-line-thin {{ stroke: #A0A0A0; }}
             .dim-text {{ fill: #E0E0E0; }}
-            .label-text {{ fill: #1E1E1E; }} /* Keeps contrast inside lighter boxes */
+            .label-text {{ fill: #1E1E1E; }}
             .title-text {{ fill: #FFFFFF; }}
             .arrow-head {{ fill: #E0E0E0; }}
         }}
@@ -146,7 +146,7 @@ def generate_cross_section_svg(res, a_mm, b_max_mm, plate_margin_mm, cooling_pla
 # ================= MAIN STREAMLIT APP =================
 
 st.title("⚡ Pancake Coil Designer & Optimizer")
-st.markdown("Design stacked, potted pancake coils. Adjust parameters to see instant results and a dynamic engineering schematic.")
+st.markdown("Design stacked, potted pancake coils. Adjust parameters to see instant results and download a complete BOM.")
 
 # --- SIDEBAR / INPUTS ---
 with st.sidebar:
@@ -201,9 +201,10 @@ with st.sidebar:
 
 # --- CONSTANTS ---
 rho = 1.68e-8
-density_cu = 8960.0
-density_al = 2700.0
-density_epoxy = 1150.0
+density_cu = 8960.0       # kg/m^3
+density_al = 2700.0       # kg/m^3
+density_epoxy = 1150.0    # kg/m^3
+density_mylar = 1390.0    # kg/m^3 
 cp_water = 4186.0
 rho_water = 1000.0
 
@@ -252,11 +253,20 @@ def optimize_pancake_coil():
     
     total_turns = N_per_pancake * num_pancakes
     total_length_m = total_turns * MLT_m
+    
+    # Weight & Volume Math
     t_cu_m = t_cu_mm / 1000.0
     w_cu_m = w_cu_mm / 1000.0
     A_cu = t_cu_m * w_cu_m
     volume_cu_m3 = A_cu * total_length_m
     weight_cu_kg = volume_cu_m3 * density_cu
+
+    # Mylar Weight Math
+    t_mylar_m = t_mylar_mm / 1000.0
+    w_mylar_m = w_mylar_mm / 1000.0
+    A_mylar = t_mylar_m * w_mylar_m
+    volume_mylar_m3 = A_mylar * total_length_m
+    weight_mylar_kg = volume_mylar_m3 * density_mylar
     
     r_in_m = a_mm / 1000.0
     plate_r_out_m = (winding_a_mm + actual_build_mm + plate_margin_mm) / 1000.0
@@ -271,11 +281,14 @@ def optimize_pancake_coil():
     winding_b_m = winding_b_actual_mm / 1000.0
     v_winding_block_m3 = np.pi * (winding_b_m**2 - winding_a_m**2) * (total_pancakes_axial_mm / 1000.0)
     v_plates_insul_m3 = np.pi * (plate_r_out_m**2 - r_in_m**2) * ((total_plates_axial_mm + total_insulation_axial_mm) / 1000.0)
+    
     volume_epoxy_m3 = max(0.0, v_gross_mold_m3 - v_winding_block_m3 - v_plates_insul_m3)
     vol_epoxy_L = volume_epoxy_m3 * 1000.0
     weight_epoxy_kg = volume_epoxy_m3 * density_epoxy
-    total_weight_kg = weight_cu_kg + weight_al_kg + weight_epoxy_kg
     
+    total_weight_kg = weight_cu_kg + weight_al_kg + weight_mylar_kg + weight_epoxy_kg
+    
+    # Electrical Math
     R_total = rho * (total_length_m / A_cu)
     V_req = I_const * R_total
     P_total = (I_const ** 2) * R_total
@@ -298,6 +311,7 @@ def optimize_pancake_coil():
         "build_mm": actual_build_mm,
         "wt_cu_kg": weight_cu_kg,
         "wt_al_kg": weight_al_kg,
+        "wt_mylar_kg": weight_mylar_kg,
         "vol_epoxy_L": vol_epoxy_L,
         "wt_epoxy_kg": weight_epoxy_kg,
         "wt_total_kg": total_weight_kg,
@@ -320,24 +334,69 @@ if res:
     if not res['fits_window']:
         st.warning(f"⚠️ **Warning:** Winding build exceeds available space by {abs(res['unused_space_mm']):.2f} mm!")
     
+    # --- EXPORT DATA LOGIC ---
+    # Create a clean dictionary for the CSV export
+    export_dict = {
+        "Constraint Mode": [res['constraint_type']],
+        "Pancakes in Series": [num_pancakes],
+        "Turns per Pancake": [res['turns_per_pancake']],
+        "Total Turns": [res['total_turns']],
+        "Operating Current (A)": [I_const],
+        "Ampere-Turns (AT)": [res['NI']],
+        "Resistance (Ohms)": [res['R']],
+        "Voltage Drop (V)": [res['V']],
+        "Power (W)": [res['P']],
+        "Required Cooling (LPM)": [res['Flow_LPM']],
+        "Mold Inner Radius (mm)": [a_mm],
+        "Winding Inner Radius (mm)": [res['winding_a_mm']],
+        "Radial Build (mm)": [res['build_mm']],
+        "Final Outer Radius (mm)": [res['winding_b_actual_mm']],
+        "Mold Max Radius (mm)": [b_max_mm],
+        "Remaining Radial Slack (mm)": [res['unused_space_mm']],
+        "Total Axial Height (mm)": [res['ax_total_mm']],
+        "Applied MLT (m)": [res['MLT_m']],
+        "Total Conductor Length (m)": [res['length_m']],
+        "Total Copper Mass (kg)": [res['wt_cu_kg']],
+        "Total Aluminum Mass (kg)": [res['wt_al_kg']],
+        "Total Mylar Mass (kg)": [res['wt_mylar_kg']],
+        "Epoxy Volume (Liters)": [res['vol_epoxy_L']],
+        "Potting Epoxy Mass (kg)": [res['wt_epoxy_kg']],
+        "Total Assembly Mass (kg)": [res['wt_total_kg']]
+    }
+    
+    df_export = pd.DataFrame(export_dict)
+    csv_data = df_export.to_csv(index=False).encode('utf-8')
+
+    # --- TOP LEVEL METRICS & EXPORT BUTTON ---
+    col1, col2, col3, col4, col5 = st.columns([1,1,1,1, 1.2])
+    col1.metric("Total Ampere-Turns", f"{res['NI']:,.0f} AT")
+    col2.metric("Power Dissipation", f"{res['P']:.1f} W")
+    col3.metric("Total Resistance", f"{res['R']:.4f} Ω")
+    col4.metric("Required Cooling", f"{res['Flow_LPM']:.1f} L/min")
+    
+    # Place the export button cleanly in the right-most column
+    with col5:
+        st.write("") # Add a little vertical spacing to align the button
+        st.download_button(
+            label="📥 Download CSV Report",
+            data=csv_data,
+            file_name="pancake_coil_design.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+        
+    st.divider()
+    
+    # --- TABS ---
     tab1, tab2, tab3 = st.tabs(["📊 Specs & Data", "📐 Engineering Schematic", "⚖️ Bill of Materials"])
     
     with tab1:
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total Ampere-Turns", f"{res['NI']:,.0f} AT", help="Total magnetic potential")
-        col2.metric("Power Dissipation", f"{res['P']:.1f} W", f"{res['V']:.1f} Volts drop")
-        col3.metric("Total Resistance", f"{res['R']:.4f} Ω")
-        col4.metric("Required Cooling", f"{res['Flow_LPM']:.1f} L/min", f"for ΔT={dT_water}°C")
-        
-        st.divider()
-        
         col_rad, col_ax = st.columns(2)
         
         with col_rad:
             st.subheader("Radial Dimensions (mm)")
             st.text(f"Mode: {res['constraint_type']}")
             
-            # Using Pandas to format as a table without the default numeric index
             df_rad = pd.DataFrame({
                 "Parameter": ["Mold Inner Radius (a)", "Winding Inner Radius", "Actual Radial Build", "Final Outer Radius", "Mold Max Radius (b_max)", "Remaining 'Slack'"],
                 "Value (mm)": [
@@ -355,7 +414,6 @@ if res:
         with col_ax:
             st.subheader("Axial Stack Dimensions (mm)")
             
-            # Using Pandas to format as a table without the default numeric index
             df_ax = pd.DataFrame({
                 "Component Stack": ["Total Pancakes (Mylar width)", "Total Cooling Plates", "Total Interface Insul (Fiberglass)", "---", "OVERALL ASSEMBLY HEIGHT"],
                 "Value (mm)": [
@@ -370,7 +428,7 @@ if res:
 
     with tab2:
         st.subheader("Cross-Sectional View (Proportional)")
-        st.caption("Visual representation of the stack buildup based on current parameters. Gray area is potting compound.")
+        st.caption("Visual representation of the stack buildup based on current parameters. Epoxy potting dynamically adapts to Dark/Light mode.")
         
         svg_xml = generate_cross_section_svg(res, a_mm, b_max_mm, plate_margin_mm, cooling_plates_mm, num_pancakes)
         b64 = base64.b64encode(svg_xml.encode('utf-8')).decode("utf-8")
@@ -379,10 +437,14 @@ if res:
 
     with tab3:
         st.subheader("Estimated Assembly Weights & Volumes")
-        col_w1, col_w2, col_w3 = st.columns(3)
+        
+        col_w1, col_w2 = st.columns(2)
+        col_w3, col_w4 = st.columns(2)
+        
         col_w1.metric("Total Copper Mass", f"{res['wt_cu_kg']:.1f} kg", f"{res['total_turns']} total turns")
         col_w2.metric("Total Aluminum Mass", f"{res['wt_al_kg']:.1f} kg")
-        col_w3.metric("Potting Epoxy Mass", f"{res['wt_epoxy_kg']:.1f} kg", f"{res['vol_epoxy_L']:.1f} Liters")
+        col_w3.metric("Total Mylar Mass", f"{res['wt_mylar_kg']:.1f} kg")
+        col_w4.metric("Potting Epoxy Mass", f"{res['wt_epoxy_kg']:.1f} kg", f"{res['vol_epoxy_L']:.1f} Liters")
         
         st.divider()
         st.metric("ESTIMATED TOTAL POTTED ASSEMBLY MASS", f"{res['wt_total_kg']:.1f} kg", delta_color="off")
