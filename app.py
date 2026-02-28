@@ -7,8 +7,8 @@ import base64
 st.set_page_config(page_title="Dynamic Coil Designer", page_icon="⚡", layout="wide")
 
 # --- SVG GENERATION FUNCTION ---
-def generate_cross_section_svg(res, a_mm, b_max_mm, plate_margin_mm, cooling_plates_list, num_pancakes):
-    """Generates a proportional SVG cross-section drawing with dynamic Light/Dark mode."""
+def generate_cross_section_svg(res, a_mm, b_max_mm, rad_dim_mode, plate_margin_mm, cooling_plates_list, num_pancakes):
+    """Generates a proportional SVG cross-section drawing with dynamic Light/Dark mode and adaptive labels."""
     
     # Scale factor to convert physical mm to SVG pixels so it fits on screen
     max_dim_mm = max(b_max_mm * 1.1, res['ax_total_mm'] * 1.1)
@@ -92,10 +92,20 @@ def generate_cross_section_svg(res, a_mm, b_max_mm, plate_margin_mm, cooling_pla
          draw_rect(a_mm, current_y_mm, b_max_mm-a_mm, h_plate, "al")
          current_y_mm += h_plate
 
+    # Adaptive Labels based on user Input Mode
+    if rad_dim_mode == "Diameter":
+        label_in = f"Plate ID: {a_mm*2:.1f}"
+        label_out = f"Plate OD: {b_max_mm*2:.1f}"
+        label_wind = f"Winding OD: {res['winding_b_actual_mm']*2:.1f}"
+    else:
+        label_in = f"Plate Inner Rad: {a_mm:.1f}"
+        label_out = f"Plate Max Rad: {b_max_mm:.1f}"
+        label_wind = f"Winding Outer Rad: {res['winding_b_actual_mm']:.1f}"
+
     # Add Dimension Labels
-    draw_dim_line(0, 0, a_mm, 0, f"Inner: {a_mm:.1f}", offset_mm=-20)
-    draw_dim_line(0, 0, res['winding_b_actual_mm'], 0, f"Outer: {res['winding_b_actual_mm']:.1f}", offset_mm=-45)
-    draw_dim_line(0, 0, b_max_mm, 0, f"Mold: {b_max_mm:.1f}", offset_mm=-70)
+    draw_dim_line(0, 0, a_mm, 0, label_in, offset_mm=-20)
+    draw_dim_line(0, 0, res['winding_b_actual_mm'], 0, label_wind, offset_mm=-45)
+    draw_dim_line(0, 0, b_max_mm, 0, label_out, offset_mm=-70)
     draw_dim_line(b_max_mm, 0, b_max_mm, res['ax_total_mm'], f"Total Axial: {res['ax_total_mm']:.1f} mm", offset_mm=20, is_vertical=True)
 
     # SVG Header with embedded CSS for Light/Dark Mode
@@ -164,9 +174,25 @@ with st.sidebar:
         target_turns_per_pancake = 45 
 
     st.subheader("2. Radial Geometry (mm)")
+    rad_dim_mode = st.radio("Input Mode:", ["Diameter", "Radius"], horizontal=True)
+    
     col_r1, col_r2 = st.columns(2)
-    a_mm = col_r1.number_input("Inner Radius (Mold)", value=600.0, step=1.0, format="%.1f")
-    b_max_mm = col_r2.number_input("Max Outer Radius (Mold)", value=700.0, step=1.0, format="%.1f")
+    
+    if rad_dim_mode == "Diameter":
+        plate_in_mm = col_r1.number_input("Cooling Plate ID", value=1200.0, step=1.0, format="%.1f")
+        plate_out_mm = col_r2.number_input("Cooling Plate OD", value=1400.0, step=1.0, format="%.1f")
+        a_mm = plate_in_mm / 2.0
+        b_max_mm = plate_out_mm / 2.0
+        plate_id_mm = plate_in_mm
+        plate_od_mm = plate_out_mm
+    else:
+        plate_in_mm = col_r1.number_input("Cooling Plate Inner Radius", value=600.0, step=1.0, format="%.1f")
+        plate_out_mm = col_r2.number_input("Cooling Plate Outer Radius", value=700.0, step=1.0, format="%.1f")
+        a_mm = plate_in_mm
+        b_max_mm = plate_out_mm
+        plate_id_mm = a_mm * 2.0
+        plate_od_mm = b_max_mm * 2.0
+        
     plate_margin_mm = st.number_input("Epoxy Edge Margin", value=1.0, step=0.1, format="%.1f", help="Clearance between copper and inner/outer mold walls.")
 
     st.subheader("3. Stack Config")
@@ -335,7 +361,6 @@ if res:
         st.warning(f"⚠️ **Warning:** Winding build exceeds available space by {abs(res['unused_space_mm']):.2f} mm!")
     
     # --- EXPORT DATA LOGIC ---
-    # Create a clean dictionary for the CSV export
     export_dict = {
         "Constraint Mode": [res['constraint_type']],
         "Pancakes in Series": [num_pancakes],
@@ -347,11 +372,14 @@ if res:
         "Voltage Drop (V)": [res['V']],
         "Power (W)": [res['P']],
         "Required Cooling (LPM)": [res['Flow_LPM']],
-        "Mold Inner Radius (mm)": [a_mm],
+        "Input Mode Used": [rad_dim_mode],
+        "Cooling Plate ID (mm)": [plate_id_mm],
+        "Cooling Plate OD (mm)": [plate_od_mm],
         "Winding Inner Radius (mm)": [res['winding_a_mm']],
+        "Winding Inner Diameter (mm)": [res['winding_a_mm'] * 2.0],
         "Radial Build (mm)": [res['build_mm']],
         "Final Outer Radius (mm)": [res['winding_b_actual_mm']],
-        "Mold Max Radius (mm)": [b_max_mm],
+        "Final Outer Diameter (mm)": [res['winding_b_actual_mm'] * 2.0],
         "Remaining Radial Slack (mm)": [res['unused_space_mm']],
         "Total Axial Height (mm)": [res['ax_total_mm']],
         "Applied MLT (m)": [res['MLT_m']],
@@ -374,9 +402,8 @@ if res:
     col3.metric("Total Resistance", f"{res['R']:.4f} Ω")
     col4.metric("Required Cooling", f"{res['Flow_LPM']:.1f} L/min")
     
-    # Place the export button cleanly in the right-most column
     with col5:
-        st.write("") # Add a little vertical spacing to align the button
+        st.write("") 
         st.download_button(
             label="📥 Download CSV Report",
             data=csv_data,
@@ -398,13 +425,20 @@ if res:
             st.text(f"Mode: {res['constraint_type']}")
             
             df_rad = pd.DataFrame({
-                "Parameter": ["Mold Inner Radius (a)", "Winding Inner Radius", "Actual Radial Build", "Final Outer Radius", "Mold Max Radius (b_max)", "Remaining 'Slack'"],
+                "Parameter": [
+                    "Cooling Plate Limit (Inner)", 
+                    "Winding Inner Border", 
+                    "Actual Radial Build", 
+                    "Winding Outer Border", 
+                    "Cooling Plate Limit (Outer)", 
+                    "Remaining 'Slack'"
+                ],
                 "Value (mm)": [
-                    f"{a_mm:.2f}",
-                    f"{res['winding_a_mm']:.2f}",
+                    f"{a_mm:.2f} Rad (ID: {plate_id_mm:.2f})",
+                    f"{res['winding_a_mm']:.2f} Rad (ID: {res['winding_a_mm']*2:.2f})",
                     f"{res['build_mm']:.2f} (x{num_pancakes})",
-                    f"{res['winding_b_actual_mm']:.2f}",
-                    f"{b_max_mm:.2f}",
+                    f"{res['winding_b_actual_mm']:.2f} Rad (OD: {res['winding_b_actual_mm']*2:.2f})",
+                    f"{b_max_mm:.2f} Rad (OD: {plate_od_mm:.2f})",
                     f"{res['unused_space_mm']:.2f}"
                 ]
             })
@@ -430,7 +464,7 @@ if res:
         st.subheader("Cross-Sectional View (Proportional)")
         st.caption("Visual representation of the stack buildup based on current parameters. Epoxy potting dynamically adapts to Dark/Light mode.")
         
-        svg_xml = generate_cross_section_svg(res, a_mm, b_max_mm, plate_margin_mm, cooling_plates_mm, num_pancakes)
+        svg_xml = generate_cross_section_svg(res, a_mm, b_max_mm, rad_dim_mode, plate_margin_mm, cooling_plates_mm, num_pancakes)
         b64 = base64.b64encode(svg_xml.encode('utf-8')).decode("utf-8")
         html = r'<img src="data:image/svg+xml;base64,%s" width="100%%"/>' % b64
         st.markdown(html, unsafe_allow_html=True)
