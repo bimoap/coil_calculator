@@ -1,5 +1,6 @@
 import streamlit as st
 import numpy as np
+import pandas as pd
 import base64
 
 # --- PAGE CONFIGURATION ---
@@ -9,11 +10,9 @@ st.set_page_config(page_title="Dynamic Coil Designer", page_icon="⚡", layout="
 def generate_cross_section_svg(res, a_mm, b_max_mm, plate_margin_mm, cooling_plates_list, num_pancakes):
     """Generates a proportional SVG cross-section drawing based on calculated results."""
     
-    # 1. Setup Scaling and Canvas
     # Scale factor to convert physical mm to SVG pixels so it fits on screen
-    # Find the largest dimension to set the scale
     max_dim_mm = max(b_max_mm * 1.1, res['ax_total_mm'] * 1.1)
-    target_svg_size = 600 # Target pixel size for the biggest dimension
+    target_svg_size = 600 
     scale = target_svg_size / max_dim_mm 
     
     # Margins for labels
@@ -32,10 +31,8 @@ def generate_cross_section_svg(res, a_mm, b_max_mm, plate_margin_mm, cooling_pla
 
     svg_elements = []
 
-    # Helper function for rectangles
     def draw_rect(x_mm, y_start_mm, w_mm, h_mm, color, label=None, opacity=1.0):
         x_px = origin_x + (x_mm * scale)
-        # SVG Y is downwards, so we subtract from origin_y
         y_px = origin_y - ((y_start_mm + h_mm) * scale) 
         w_px = w_mm * scale
         h_px = h_mm * scale
@@ -44,30 +41,22 @@ def generate_cross_section_svg(res, a_mm, b_max_mm, plate_margin_mm, cooling_pla
         if label:
              svg_elements.append(f'<text x="{x_px + w_px/2:.1f}" y="{y_px + h_px/2 + 5:.1f}" font-family="Arial" font-size="12" fill="black" text-anchor="middle">{label}</text>')
 
-    # Helper for dimensions lines
     def draw_dim_line(x1_mm, y1_mm, x2_mm, y2_mm, label_text, offset_mm=0, is_vertical=False):
         x1_px = origin_x + (x1_mm * scale)
         y1_px = origin_y - (y1_mm * scale)
         x2_px = origin_x + (x2_mm * scale)
         y2_px = origin_y - (y2_mm * scale)
-        
         off_px = offset_mm * scale
         
         if is_vertical:
-            # Main line
             svg_elements.append(f'<line x1="{x1_px+off_px}" y1="{y1_px}" x2="{x2_px+off_px}" y2="{y2_px}" stroke="black" stroke-width="1" marker-start="url(#arrow)" marker-end="url(#arrow)"/>')
-            # Witness lines
             svg_elements.append(f'<line x1="{x1_px}" y1="{y1_px}" x2="{x1_px+off_px+5}" y2="{y1_px}" stroke="black" stroke-width="0.5"/>')
             svg_elements.append(f'<line x1="{x2_px}" y1="{y2_px}" x2="{x2_px+off_px+5}" y2="{y2_px}" stroke="black" stroke-width="0.5"/>')
-            # Label
             svg_elements.append(f'<text x="{x1_px+off_px+10}" y="{(y1_px+y2_px)/2}" font-family="Arial" font-size="14" fill="black" dominant-baseline="middle">{label_text}</text>')
         else:
-             # Main line
             svg_elements.append(f'<line x1="{x1_px}" y1="{y1_px+off_px}" x2="{x2_px}" y2="{y2_px+off_px}" stroke="black" stroke-width="1" marker-start="url(#arrow)" marker-end="url(#arrow)"/>')
-            # Witness lines
             svg_elements.append(f'<line x1="{x1_px}" y1="{y1_px}" x2="{x1_px}" y2="{y1_px+off_px+5}" stroke="black" stroke-width="0.5"/>')
             svg_elements.append(f'<line x1="{x2_px}" y1="{y2_px}" x2="{x2_px}" y2="{y2_px+off_px+5}" stroke="black" stroke-width="0.5"/>')
-            # Label
             svg_elements.append(f'<text x="{(x1_px+x2_px)/2}" y="{y1_px+off_px+15}" font-family="Arial" font-size="14" fill="black" text-anchor="middle">{label_text}</text>')
 
     # COLORS
@@ -77,58 +66,45 @@ def generate_cross_section_svg(res, a_mm, b_max_mm, plate_margin_mm, cooling_pla
     color_insul = "#F0E68C"
     color_mold = "#FF0000"
 
-    # 2. Draw Background / Mold Limits
-    # Center line
+    # Background / Mold Limits
     svg_elements.append(f'<line x1="{origin_x}" y1="{pad_top}" x2="{origin_x}" y2="{svg_height-pad_bottom}" stroke="black" stroke-width="1" stroke-dasharray="5,5"/>')
-    
-    # Mold Boundaries (Red lines)
-    draw_rect(a_mm, 0, b_max_mm-a_mm, res['ax_total_mm'], color_epoxy, opacity=0.5) # Potting background
+    draw_rect(a_mm, 0, b_max_mm-a_mm, res['ax_total_mm'], color_epoxy, opacity=0.5) 
     svg_elements.append(f'<line x1="{origin_x + a_mm*scale}" y1="{pad_top}" x2="{origin_x + a_mm*scale}" y2="{svg_height-pad_bottom}" stroke="{color_mold}" stroke-width="2"/>')
     svg_elements.append(f'<line x1="{origin_x + b_max_mm*scale}" y1="{pad_top}" x2="{origin_x + b_max_mm*scale}" y2="{svg_height-pad_bottom}" stroke="{color_mold}" stroke-width="2"/>')
 
-    # 3. Draw The Stack (Iterative Building)
+    # Draw The Stack
     current_y_mm = 0.0
     pancake_height_mm = res['ax_pancakes_mm'] / num_pancakes
-    insul_height_mm = res['ax_insul_mm'] / (num_pancakes * 2) # Single interface thickness
+    insul_height_mm = res['ax_insul_mm'] / (num_pancakes * 2)
 
-    # We assume bookend structure based on plate count vs pancake count
     plate_idx = 0
     for i in range(num_pancakes):
-        # Bottom Plate for this section (if exists)
         if plate_idx < len(cooling_plates_list):
              h_plate = cooling_plates_list[plate_idx]
              draw_rect(a_mm, current_y_mm, b_max_mm-a_mm, h_plate, color_al)
              current_y_mm += h_plate
              plate_idx += 1
         
-        # Bottom Insulation
         draw_rect(a_mm, current_y_mm, b_max_mm-a_mm, insul_height_mm, color_insul)
         current_y_mm += insul_height_mm
 
-        # Pancake Coil (Winding Block)
         draw_rect(res['winding_a_mm'], current_y_mm, res['build_mm'], pancake_height_mm, color_copper, label="Cu")
         current_y_mm += pancake_height_mm
         
-        # Top Insulation
         draw_rect(a_mm, current_y_mm, b_max_mm-a_mm, insul_height_mm, color_insul)
         current_y_mm += insul_height_mm
         
-    # Final Top Plate (if exists in list)
     if plate_idx < len(cooling_plates_list):
          h_plate = cooling_plates_list[plate_idx]
          draw_rect(a_mm, current_y_mm, b_max_mm-a_mm, h_plate, color_al)
          current_y_mm += h_plate
 
-    # 4. Add Dimension Labels
-    # Radial Dimensions (Bottom)
+    # Add Dimension Labels
     draw_dim_line(0, 0, a_mm, 0, f"Inner Radius: {a_mm:.1f}", offset_mm=-20)
     draw_dim_line(0, 0, res['winding_b_actual_mm'], 0, f"Winding Outer: {res['winding_b_actual_mm']:.1f}", offset_mm=-45)
     draw_dim_line(0, 0, b_max_mm, 0, f"Mold Max: {b_max_mm:.1f}", offset_mm=-70)
-
-    # Axial Dimensions (Right Side)
     draw_dim_line(b_max_mm, 0, b_max_mm, res['ax_total_mm'], f"Total Axial: {res['ax_total_mm']:.1f} mm", offset_mm=20, is_vertical=True)
 
-    # 5. Assemble final SVG string with arrow definitions
     svg_header = f"""<svg width="{svg_width}" height="{svg_height}" xmlns="http://www.w3.org/2000/svg">
     <defs>
         <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
@@ -150,7 +126,6 @@ st.markdown("Design stacked, potted pancake coils. Adjust parameters to see inst
 with st.sidebar:
     st.header("⚙️ Design Parameters")
     
-    # 1. Constraint Mode
     st.subheader("1. Goal & Constraints")
     constraint_mode = st.radio(
         "Optimization Goal:", 
@@ -160,28 +135,24 @@ with st.sidebar:
     if constraint_mode == 2:
         target_turns_per_pancake = st.number_input("Target Turns per Pancake", min_value=1, value=45, step=1)
     else:
-        target_turns_per_pancake = 45 # Default unused value
+        target_turns_per_pancake = 45 
 
-    # 2. Physical Dimensions
     st.subheader("2. Radial Geometry (mm)")
     col_r1, col_r2 = st.columns(2)
     a_mm = col_r1.number_input("Inner Radius (Mold)", value=600.0, step=1.0, format="%.1f")
     b_max_mm = col_r2.number_input("Max Outer Radius (Mold)", value=700.0, step=1.0, format="%.1f")
     plate_margin_mm = st.number_input("Epoxy Edge Margin", value=1.0, step=0.1, format="%.1f", help="Clearance between copper and inner/outer mold walls.")
 
-    # 3. Stack Configuration
     st.subheader("3. Stack Config")
     num_pancakes = st.number_input("Number of Pancakes", min_value=1, value=4, step=1)
     plates_input = st.text_input("Cooling Plates (mm, comma-separated)", value="10.0, 8.0, 8.0, 8.0, 10.0", help="Define thickness of plates from bottom to top.")
     
-    # Parse cooling plates list
     try:
         cooling_plates_mm = [float(x.strip()) for x in plates_input.split(',')]
     except ValueError:
         st.error("Invalid format for cooling plates. Use numbers separated by commas.")
         st.stop()
 
-    # 4. Materials
     with st.expander("4. Material Details (Advanced)", expanded=False):
         st.markdown("**Conductor & Turn Insulation**")
         col_m1, col_m2 = st.columns(2)
@@ -198,7 +169,6 @@ with st.sidebar:
         st.markdown("**Other**")
         MLT_input_m = st.number_input("Fixed MLT (m) [0=Auto]", value=0.0, format="%.3f", help="Set >0 for non-circular coils.")
 
-    # 5. Electrical & Thermal
     with st.expander("5. Operating Conditions", expanded=False):
         I_const = st.number_input("Operating Current (A)", value=60.0, step=1.0, format="%.1f")
         dT_water = st.number_input("Allowed Water Temp Rise (°C)", value=10.0, step=1.0, format="%.1f")
@@ -212,7 +182,6 @@ cp_water = 4186.0
 rho_water = 1000.0
 
 # ================= CALCULATION LOGIC =================
-# (This is the exact same logic from the previous Python script)
 def optimize_pancake_coil():
     if w_mylar_mm < w_cu_mm:
         st.error(f"**Design Error:** Mylar width ({w_mylar_mm} mm) cannot be smaller than copper width ({w_cu_mm} mm).")
@@ -319,19 +288,15 @@ def optimize_pancake_coil():
 
 # ================= OUTPUT & VISUALIZATION =================
 
-# Run calculation on every parameter change
 res = optimize_pancake_coil()
 
 if res:
-    # --- Top Level Status ---
     if not res['fits_window']:
         st.warning(f"⚠️ **Warning:** Winding build exceeds available space by {abs(res['unused_space_mm']):.2f} mm!")
     
-    # --- Create Tabs for organized view ---
     tab1, tab2, tab3 = st.tabs(["📊 Specs & Data", "📐 Engineering Schematic", "⚖️ Bill of Materials"])
     
     with tab1:
-        # --- Key Metrics Row ---
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Total Ampere-Turns", f"{res['NI']:,.0f} AT", help="Total magnetic potential")
         col2.metric("Power Dissipation", f"{res['P']:.1f} W", f"{res['V']:.1f} Volts drop")
@@ -340,13 +305,14 @@ if res:
         
         st.divider()
         
-        # --- Detailed Data Tables ---
         col_rad, col_ax = st.columns(2)
         
         with col_rad:
             st.subheader("Radial Dimensions (mm)")
             st.text(f"Mode: {res['constraint_type']}")
-            st.table({
+            
+            # Using Pandas to format as a table without the default numeric index
+            df_rad = pd.DataFrame({
                 "Parameter": ["Mold Inner Radius (a)", "Winding Inner Radius", "Actual Radial Build", "Final Outer Radius", "Mold Max Radius (b_max)", "Remaining 'Slack'"],
                 "Value (mm)": [
                     f"{a_mm:.2f}",
@@ -357,38 +323,36 @@ if res:
                     f"{res['unused_space_mm']:.2f}"
                 ]
             })
+            st.table(df_rad.set_index("Parameter"))
             st.caption(f"Applied MLT: {res['MLT_m']:.3f} m ({res['shape_type']})")
 
         with col_ax:
             st.subheader("Axial Stack Dimensions (mm)")
-            st.table({
-                "Component Stack": ["Total Pancakes (Mylar width)", "Total Cooling Plates", "Total Interface Insul (Fiberglass)", "---", "**OVERALL ASSEMBLY HEIGHT**"],
+            
+            # Using Pandas to format as a table without the default numeric index
+            df_ax = pd.DataFrame({
+                "Component Stack": ["Total Pancakes (Mylar width)", "Total Cooling Plates", "Total Interface Insul (Fiberglass)", "---", "OVERALL ASSEMBLY HEIGHT"],
                 "Value (mm)": [
                     f"{res['ax_pancakes_mm']:.2f}",
                     f"{res['ax_plates_mm']:.2f}",
                     f"{res['ax_insul_mm']:.2f}",
                     "",
-                    f"**{res['ax_total_mm']:.2f}**"
+                    f"{res['ax_total_mm']:.2f}"
                 ]
             })
+            st.table(df_ax.set_index("Component Stack"))
 
     with tab2:
-        # --- Dynamic SVG Generation ---
         st.subheader("Cross-Sectional View (Proportional)")
         st.caption("Visual representation of the stack buildup based on current parameters. Gray area is potting compound.")
         
-        # Generate the SVG string
         svg_xml = generate_cross_section_svg(res, a_mm, b_max_mm, plate_margin_mm, cooling_plates_mm, num_pancakes)
-        
-        # Render SVG in Streamlit
-        # Using base64 encoding ensures it renders reliably across browsers
         b64 = base64.b64encode(svg_xml.encode('utf-8')).decode("utf-8")
         html = r'<img src="data:image/svg+xml;base64,%s" width="100%%"/>' % b64
         st.markdown(html, unsafe_allow_html=True)
 
     with tab3:
         st.subheader("Estimated Assembly Weights & Volumes")
-        
         col_w1, col_w2, col_w3 = st.columns(3)
         col_w1.metric("Total Copper Mass", f"{res['wt_cu_kg']:.1f} kg", f"{res['total_turns']} total turns")
         col_w2.metric("Total Aluminum Mass", f"{res['wt_al_kg']:.1f} kg")
