@@ -10,22 +10,18 @@ st.set_page_config(page_title="Dynamic Coil Designer", page_icon="⚡", layout="
 def generate_cross_section_svg(res, a_mm, b_max_mm, rad_dim_mode, plate_margin_mm, cooling_plates_list, num_pancakes):
     """Generates a proportional SVG cross-section drawing with dynamic Light/Dark mode and adaptive labels."""
     
-    # Scale factor to convert physical mm to SVG pixels so it fits on screen
     max_dim_mm = max(b_max_mm * 1.1, res['ax_total_mm'] * 1.1)
     target_svg_size = 600 
     scale = target_svg_size / max_dim_mm 
     
-    # Margins for labels
     pad_left = 80
     pad_right = 150
     pad_top = 50
     pad_bottom = 50
 
-    # Calculate canvas dimensions
     svg_width = (b_max_mm * scale) + pad_left + pad_right
     svg_height = (res['ax_total_mm'] * scale) + pad_top + pad_bottom
     
-    # Origin point (Center line at bottom)
     origin_x = pad_left
     origin_y = svg_height - pad_bottom
 
@@ -92,7 +88,7 @@ def generate_cross_section_svg(res, a_mm, b_max_mm, rad_dim_mode, plate_margin_m
          draw_rect(a_mm, current_y_mm, b_max_mm-a_mm, h_plate, "al")
          current_y_mm += h_plate
 
-    # Adaptive Labels based on user Input Mode
+    # Adaptive Labels
     if rad_dim_mode == "Diameter":
         label_in = f"Plate ID: {a_mm*2:.1f}"
         label_out = f"Plate OD: {b_max_mm*2:.1f}"
@@ -102,16 +98,13 @@ def generate_cross_section_svg(res, a_mm, b_max_mm, rad_dim_mode, plate_margin_m
         label_out = f"Plate Max Rad: {b_max_mm:.1f}"
         label_wind = f"Winding Outer Rad: {res['winding_b_actual_mm']:.1f}"
 
-    # Add Dimension Labels
     draw_dim_line(0, 0, a_mm, 0, label_in, offset_mm=-20)
     draw_dim_line(0, 0, res['winding_b_actual_mm'], 0, label_wind, offset_mm=-45)
     draw_dim_line(0, 0, b_max_mm, 0, label_out, offset_mm=-70)
     draw_dim_line(b_max_mm, 0, b_max_mm, res['ax_total_mm'], f"Total Axial: {res['ax_total_mm']:.1f} mm", offset_mm=20, is_vertical=True)
 
-    # SVG Header with embedded CSS for Light/Dark Mode
     svg_header = f"""<svg width="{svg_width}" height="{svg_height}" xmlns="http://www.w3.org/2000/svg">
     <style>
-        /* Light Mode (Default) */
         .cu {{ fill: #B87333; }}
         .al {{ fill: #A0A0A4; }}
         .epoxy {{ fill: #E0E0E0; }}
@@ -125,7 +118,6 @@ def generate_cross_section_svg(res, a_mm, b_max_mm, rad_dim_mode, plate_margin_m
         .title-text {{ font-family: Arial; font-size: 20px; font-weight: bold; fill: #000000; }}
         .arrow-head {{ fill: #000000; }}
 
-        /* Dark Mode Override */
         @media (prefers-color-scheme: dark) {{
             .cu {{ fill: #C88343; }}
             .al {{ fill: #606064; }}
@@ -224,6 +216,11 @@ with st.sidebar:
     with st.expander("5. Operating Conditions", expanded=False):
         I_const = st.number_input("Operating Current (A)", value=60.0, step=1.0, format="%.1f")
         dT_water = st.number_input("Allowed Water Temp Rise (°C)", value=10.0, step=1.0, format="%.1f")
+
+    # --- SIGNATURE ---
+    st.divider()
+    st.caption("⚡ **Pancake Coil Optimizer v1.0**")
+    st.caption("Designed by Bimo Adhi Prastya")
 
 # --- CONSTANTS ---
 rho = 1.68e-8
