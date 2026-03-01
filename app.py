@@ -393,8 +393,8 @@ if res:
     csv_data = df_export.to_csv(index=False).encode('utf-8')
 
     # --- TOP LEVEL METRICS & EXPORT BUTTON ---
-    col1, col2, col3, col4, col5 = st.columns([1,1,1,1, 1.2])
-    col1.metric("Total Ampere-Turns", f"{res['NI']:,.0f} AT")
+    col1, col2, col3, col4, col5 = st.columns([1.2, 1, 1, 1, 1.2])
+    col1.metric("Total Ampere-Turns", f"{res['NI']:,.0f} AT", f"{res['total_turns']} turns @ {I_const} A", delta_color="off")
     col2.metric("Power Dissipation", f"{res['P']:.1f} W")
     col3.metric("Total Resistance", f"{res['R']:.4f} Ω")
     col4.metric("Required Cooling", f"{res['Flow_LPM']:.1f} L/min")
@@ -426,7 +426,6 @@ if res:
                     "Cooling Plate Limit (Inner)", 
                     "Winding Inner Border", 
                     "Turns per Pancake",
-                    "Total Turns (Entire Stack)",
                     "Actual Radial Build", 
                     "Winding Outer Border", 
                     "Cooling Plate Limit (Outer)", 
@@ -436,7 +435,6 @@ if res:
                     f"{a_mm:.2f} mm Rad (ID: {plate_id_mm:.2f})",
                     f"{res['winding_a_mm']:.2f} mm Rad (ID: {res['winding_a_mm']*2:.2f})",
                     f"{res['turns_per_pancake']} turns",
-                    f"{res['total_turns']} turns",
                     f"{res['build_mm']:.2f} mm (x{num_pancakes} cakes)",
                     f"{res['winding_b_actual_mm']:.2f} mm Rad (OD: {res['winding_b_actual_mm']*2:.2f})",
                     f"{b_max_mm:.2f} mm Rad (OD: {plate_od_mm:.2f})",
