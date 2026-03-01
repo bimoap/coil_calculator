@@ -418,25 +418,29 @@ if res:
         col_rad, col_ax = st.columns(2)
         
         with col_rad:
-            st.subheader("Radial Dimensions (mm)")
+            st.subheader("Radial Dimensions & Turns")
             st.text(f"Mode: {res['constraint_type']}")
             
             df_rad = pd.DataFrame({
                 "Parameter": [
                     "Cooling Plate Limit (Inner)", 
                     "Winding Inner Border", 
+                    "Turns per Pancake",
+                    "Total Turns (Entire Stack)",
                     "Actual Radial Build", 
                     "Winding Outer Border", 
                     "Cooling Plate Limit (Outer)", 
                     "Remaining 'Slack'"
                 ],
-                "Value (mm)": [
-                    f"{a_mm:.2f} Rad (ID: {plate_id_mm:.2f})",
-                    f"{res['winding_a_mm']:.2f} Rad (ID: {res['winding_a_mm']*2:.2f})",
-                    f"{res['build_mm']:.2f} (x{num_pancakes})",
-                    f"{res['winding_b_actual_mm']:.2f} Rad (OD: {res['winding_b_actual_mm']*2:.2f})",
-                    f"{b_max_mm:.2f} Rad (OD: {plate_od_mm:.2f})",
-                    f"{res['unused_space_mm']:.2f}"
+                "Value": [
+                    f"{a_mm:.2f} mm Rad (ID: {plate_id_mm:.2f})",
+                    f"{res['winding_a_mm']:.2f} mm Rad (ID: {res['winding_a_mm']*2:.2f})",
+                    f"{res['turns_per_pancake']} turns",
+                    f"{res['total_turns']} turns",
+                    f"{res['build_mm']:.2f} mm (x{num_pancakes} cakes)",
+                    f"{res['winding_b_actual_mm']:.2f} mm Rad (OD: {res['winding_b_actual_mm']*2:.2f})",
+                    f"{b_max_mm:.2f} mm Rad (OD: {plate_od_mm:.2f})",
+                    f"{res['unused_space_mm']:.2f} mm"
                 ]
             })
             st.table(df_rad.set_index("Parameter"))
@@ -447,12 +451,12 @@ if res:
             
             df_ax = pd.DataFrame({
                 "Component Stack": ["Total Pancakes (Mylar width)", "Total Cooling Plates", "Total Interface Insul (Fiberglass)", "---", "OVERALL ASSEMBLY HEIGHT"],
-                "Value (mm)": [
-                    f"{res['ax_pancakes_mm']:.2f}",
-                    f"{res['ax_plates_mm']:.2f}",
-                    f"{res['ax_insul_mm']:.2f}",
+                "Value": [
+                    f"{res['ax_pancakes_mm']:.2f} mm",
+                    f"{res['ax_plates_mm']:.2f} mm",
+                    f"{res['ax_insul_mm']:.2f} mm",
                     "",
-                    f"{res['ax_total_mm']:.2f}"
+                    f"{res['ax_total_mm']:.2f} mm"
                 ]
             })
             st.table(df_ax.set_index("Component Stack"))
