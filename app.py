@@ -397,7 +397,7 @@ if res:
     col1.metric("Total Ampere-Turns", f"{res['NI']:,.0f} AT", f"{res['total_turns']} turns @ {I_const} A", delta_color="off")
     col2.metric("Power Dissipation", f"{res['P']:.1f} W", f"{res['V']:.1f} V @ {I_const} A", delta_color="off")
     col3.metric("Total Resistance", f"{res['R']:.4f} Ω")
-    col4.metric("Required Cooling", f"{res['Flow_LPM']:.1f} L/min")
+    col4.metric("Required Cooling", f"{res['Flow_LPM']:.1f} L/min", f"ΔT = {dT_water}°C", delta_color="off")
     
     with col5:
         st.write("") 
