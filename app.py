@@ -161,9 +161,9 @@ with st.sidebar:
         format_func=lambda x: "Maximize Turns (Fill Space)" if x == 1 else "Target Specific Turns"
     )
     if constraint_mode == 2:
-        target_turns_per_pancake = st.number_input("Target Turns per Pancake", min_value=1, value=45, step=1)
+        target_turns_per_pancake = st.number_input("Target Turns per Pancake", min_value=1, value=172, step=1)
     else:
-        target_turns_per_pancake = 45 
+        target_turns_per_pancake = 172 
 
     st.subheader("2. Radial Geometry (mm)")
     rad_dim_mode = st.radio("Input Mode:", ["Diameter", "Radius"], horizontal=True)
@@ -171,15 +171,15 @@ with st.sidebar:
     col_r1, col_r2 = st.columns(2)
     
     if rad_dim_mode == "Diameter":
-        plate_in_mm = col_r1.number_input("Cooling Plate ID", value=1200.0, step=1.0, format="%.1f")
-        plate_out_mm = col_r2.number_input("Cooling Plate OD", value=1400.0, step=1.0, format="%.1f")
+        plate_in_mm = col_r1.number_input("Cooling Plate ID", value=100.0, step=1.0, format="%.1f")
+        plate_out_mm = col_r2.number_input("Cooling Plate OD", value=259.0, step=1.0, format="%.1f")
         a_mm = plate_in_mm / 2.0
         b_max_mm = plate_out_mm / 2.0
         plate_id_mm = plate_in_mm
         plate_od_mm = plate_out_mm
     else:
-        plate_in_mm = col_r1.number_input("Cooling Plate Inner Radius", value=600.0, step=1.0, format="%.1f")
-        plate_out_mm = col_r2.number_input("Cooling Plate Outer Radius", value=700.0, step=1.0, format="%.1f")
+        plate_in_mm = col_r1.number_input("Cooling Plate Inner Radius", value=50.0, step=1.0, format="%.1f")
+        plate_out_mm = col_r2.number_input("Cooling Plate Outer Radius", value=129.5, step=1.0, format="%.1f")
         a_mm = plate_in_mm
         b_max_mm = plate_out_mm
         plate_id_mm = a_mm * 2.0
@@ -188,8 +188,8 @@ with st.sidebar:
     plate_margin_mm = st.number_input("Epoxy Edge Margin", value=1.0, step=0.1, format="%.1f", help="Clearance between copper and inner/outer mold walls.")
 
     st.subheader("3. Stack Config")
-    num_pancakes = st.number_input("Number of Pancakes", min_value=1, value=4, step=1)
-    plates_input = st.text_input("Cooling Plates (mm, comma-separated)", value="10.0, 8.0, 8.0, 8.0, 10.0", help="Define thickness of plates from bottom to top.")
+    num_pancakes = st.number_input("Number of Pancakes", min_value=1, value=2, step=1)
+    plates_input = st.text_input("Cooling Plates (mm, comma-separated)", value="6.0, 6.0, 6.0", help="Define thickness of plates from bottom to top.")
     
     try:
         cooling_plates_mm = [float(x.strip()) for x in plates_input.split(',')]
@@ -200,10 +200,10 @@ with st.sidebar:
     with st.expander("4. Material Details (Advanced)", expanded=False):
         st.markdown("**Conductor & Turn Insulation**")
         col_m1, col_m2 = st.columns(2)
-        t_cu_mm = col_m1.number_input("Cu Thickness", value=0.318, format="%.4f")
-        w_cu_mm = col_m2.number_input("Cu Width", value=50.8, format="%.2f")
-        t_mylar_mm = col_m1.number_input("Mylar Thickness", value=0.0508, format="%.4f")
-        w_mylar_mm = col_m2.number_input("Mylar Width", value=52.0, format="%.2f")
+        t_cu_mm = col_m1.number_input("Cu Thickness", value=0.381, format="%.4f")
+        w_cu_mm = col_m2.number_input("Cu Width", value=38.1, format="%.2f")
+        t_mylar_mm = col_m1.number_input("Mylar Thickness", value=0.076, format="%.4f")
+        w_mylar_mm = col_m2.number_input("Mylar Width", value=38.8, format="%.2f")
         
         st.markdown("**Interface Insulation**")
         col_i1, col_i2 = st.columns(2)
