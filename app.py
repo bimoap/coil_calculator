@@ -158,6 +158,7 @@ with st.sidebar:
     constraint_mode = st.radio(
         "Optimization Goal:", 
         [1, 2], 
+        index=1,  # Set default to option 2 (Target Specific Turns)
         format_func=lambda x: "Maximize Turns (Fill Space)" if x == 1 else "Target Specific Turns"
     )
     if constraint_mode == 2:
