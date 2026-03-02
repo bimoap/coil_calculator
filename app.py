@@ -214,7 +214,7 @@ with st.sidebar:
         MLT_input_m = st.number_input("Fixed MLT (m) [0=Auto]", value=0.0, format="%.3f", help="Set >0 for non-circular coils.")
 
     with st.expander("5. Operating Conditions", expanded=False):
-        I_const = st.number_input("Operating Current (A)", value=60.0, step=1.0, format="%.1f")
+        I_const = st.number_input("Operating Current (A)", value=50.0, step=1.0, format="%.1f")
         dT_water = st.number_input("Allowed Water Temp Rise (°C)", value=10.0, step=1.0, format="%.1f")
 
     # --- SIGNATURE ---
