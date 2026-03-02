@@ -186,7 +186,7 @@ with st.sidebar:
         plate_id_mm = a_mm * 2.0
         plate_od_mm = b_max_mm * 2.0
         
-    plate_margin_mm = st.number_input("Epoxy Edge Margin", value=1.0, step=0.1, format="%.1f", help="Clearance between copper and inner/outer mold walls.")
+    plate_margin_mm = st.number_input("Epoxy Edge Margin", value=0.5, step=0.1, format="%.1f", help="Clearance to allow 2 layers of fiberglass between copper and inner/outer mold walls.")
 
     st.subheader("3. Stack Config")
     num_pancakes = st.number_input("Number of Pancakes", min_value=1, value=2, step=1)
@@ -203,7 +203,7 @@ with st.sidebar:
         col_m1, col_m2 = st.columns(2)
         t_cu_mm = col_m1.number_input("Cu Thickness", value=0.381, format="%.4f")
         w_cu_mm = col_m2.number_input("Cu Width", value=38.1, format="%.2f")
-        t_mylar_mm = col_m1.number_input("Mylar Thickness", value=0.076, format="%.4f")
+        t_mylar_mm = col_m1.number_input("Mylar Thickness", value=0.0762, format="%.4f")
         w_mylar_mm = col_m2.number_input("Mylar Width", value=38.8, format="%.2f")
         
         st.markdown("**Interface Insulation**")
