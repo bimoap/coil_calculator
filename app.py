@@ -277,6 +277,7 @@ def optimize_pancake_coil():
     
     total_turns = N_per_pancake * num_pancakes
     total_length_m = total_turns * MLT_m
+    length_per_pancake_m = total_length_m / num_pancakes
     
     # Weight, Volume & Current Density Math
     t_cu_m = t_cu_mm / 1000.0
@@ -335,6 +336,7 @@ def optimize_pancake_coil():
         "MLT_m": MLT_m,
         "shape_type": shape_type,
         "length_m": total_length_m,
+        "length_per_pancake_m": length_per_pancake_m,
         "A_cu_mm2": A_cu_mm2,
         "J_A_mm2": J_A_mm2,
         "build_mm": actual_build_mm,
@@ -388,6 +390,7 @@ if res:
         "Total Axial Height (mm)": [res['ax_total_mm']],
         "Applied MLT (m)": [res['MLT_m']],
         "Total Conductor Length (m)": [res['length_m']],
+        "Conductor Length per Pancake (m)": [res['length_per_pancake_m']],
         "Total Copper Mass (kg)": [res['wt_cu_kg']],
         "Total Aluminum Mass (kg)": [res['wt_al_kg']],
         "Total Mylar Mass (kg)": [res['wt_mylar_kg']],
@@ -404,7 +407,7 @@ if res:
     col1.metric("Total Ampere-Turns", f"{res['NI']:,.0f} AT", f"{res['total_turns']} turns @ {I_const} A", delta_color="off")
     col2.metric("Current Density", f"{res['J_A_mm2']:.2f} A/mm²", f"{I_const} A / {res['A_cu_mm2']:.2f} mm²", delta_color="off")
     col3.metric("Power Dissipation", f"{res['P']:.1f} W", f"{res['V']:.1f} V @ {I_const} A", delta_color="off")
-    col4.metric("Total Resistance", f"{res['R']:.4f} Ω")
+    col4.metric("Total Resistance", f"{res['R']:.4f} Ω", f"{res['length_per_pancake_m']:.1f} m/pancake × {num_pancakes}", delta_color="off")
     col5.metric("Required Cooling", f"{res['Flow_LPM']:.1f} L/min", f"ΔT = {dT_water}°C", delta_color="off")
     
     with col6:
