@@ -158,7 +158,7 @@ with st.sidebar:
     constraint_mode = st.radio(
         "Optimization Goal:", 
         [1, 2], 
-        index=1,  # Set default to option 2 (Target Specific Turns)
+        index=1,
         format_func=lambda x: "Maximize Turns (Fill Space)" if x == 1 else "Target Specific Turns"
     )
     if constraint_mode == 2:
@@ -278,10 +278,13 @@ def optimize_pancake_coil():
     total_turns = N_per_pancake * num_pancakes
     total_length_m = total_turns * MLT_m
     
-    # Weight & Volume Math
+    # Weight, Volume & Current Density Math
     t_cu_m = t_cu_mm / 1000.0
     w_cu_m = w_cu_mm / 1000.0
     A_cu = t_cu_m * w_cu_m
+    A_cu_mm2 = t_cu_mm * w_cu_mm
+    J_A_mm2 = I_const / A_cu_mm2
+    
     volume_cu_m3 = A_cu * total_length_m
     weight_cu_kg = volume_cu_m3 * density_cu
 
@@ -332,6 +335,8 @@ def optimize_pancake_coil():
         "MLT_m": MLT_m,
         "shape_type": shape_type,
         "length_m": total_length_m,
+        "A_cu_mm2": A_cu_mm2,
+        "J_A_mm2": J_A_mm2,
         "build_mm": actual_build_mm,
         "wt_cu_kg": weight_cu_kg,
         "wt_al_kg": weight_al_kg,
@@ -365,6 +370,7 @@ if res:
         "Turns per Pancake": [res['turns_per_pancake']],
         "Total Turns": [res['total_turns']],
         "Operating Current (A)": [I_const],
+        "Current Density (A/mm^2)": [res['J_A_mm2']],
         "Ampere-Turns (AT)": [res['NI']],
         "Resistance (Ohms)": [res['R']],
         "Voltage Drop (V)": [res['V']],
@@ -394,16 +400,17 @@ if res:
     csv_data = df_export.to_csv(index=False).encode('utf-8')
 
     # --- TOP LEVEL METRICS & EXPORT BUTTON ---
-    col1, col2, col3, col4, col5 = st.columns([1.2, 1, 1, 1, 1.2])
+    col1, col2, col3, col4, col5, col6 = st.columns([1.2, 1, 1, 1, 1, 1.2])
     col1.metric("Total Ampere-Turns", f"{res['NI']:,.0f} AT", f"{res['total_turns']} turns @ {I_const} A", delta_color="off")
-    col2.metric("Power Dissipation", f"{res['P']:.1f} W", f"{res['V']:.1f} V @ {I_const} A", delta_color="off")
-    col3.metric("Total Resistance", f"{res['R']:.4f} Ω")
-    col4.metric("Required Cooling", f"{res['Flow_LPM']:.1f} L/min", f"ΔT = {dT_water}°C", delta_color="off")
+    col2.metric("Current Density", f"{res['J_A_mm2']:.2f} A/mm²", f"Area: {res['A_cu_mm2']:.2f} mm²", delta_color="off")
+    col3.metric("Power Dissipation", f"{res['P']:.1f} W", f"{res['V']:.1f} V @ {I_const} A", delta_color="off")
+    col4.metric("Total Resistance", f"{res['R']:.4f} Ω")
+    col5.metric("Required Cooling", f"{res['Flow_LPM']:.1f} L/min", f"ΔT = {dT_water}°C", delta_color="off")
     
-    with col5:
+    with col6:
         st.write("") 
         st.download_button(
-            label="📥 Download CSV Report",
+            label="📥 Download CSV",
             data=csv_data,
             file_name="pancake_coil_design.csv",
             mime="text/csv",
