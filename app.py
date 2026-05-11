@@ -206,6 +206,10 @@ with st.sidebar:
         t_mylar_mm = col_m1.number_input("Mylar Thickness", value=0.0762, format="%.4f")
         w_mylar_mm = col_m2.number_input("Mylar Width", value=38.8, format="%.2f")
         
+        st.markdown("**Electrical Properties**")
+        # ADDED CUSTOM RESISTIVITY HERE
+        rho_cu = st.number_input("Copper Resistivity (Ω·m)", value=1.7139e-8, format="%.4e", help="Default matches your existing calculator standard.")
+
         st.markdown("**Interface Insulation**")
         col_i1, col_i2 = st.columns(2)
         t_fiberglass_mm = col_i1.number_input("Fiberglass Tk.", value=0.23, format="%.3f")
@@ -224,7 +228,6 @@ with st.sidebar:
     st.caption("Designed by Bimo Adhi Prastya")
 
 # --- CONSTANTS ---
-rho = 1.68e-8
 density_cu = 8960.0       # kg/m^3
 density_al = 2700.0       # kg/m^3
 density_epoxy = 1150.0    # kg/m^3
@@ -316,8 +319,8 @@ def optimize_pancake_coil():
     
     total_weight_kg = weight_cu_kg + weight_al_kg + weight_mylar_kg + weight_epoxy_kg
     
-    # Electrical Math
-    R_total = rho * (total_length_m / A_cu)
+    # Electrical Math - NOW USING rho_cu FROM SIDEBAR
+    R_total = rho_cu * (total_length_m / A_cu)
     V_req = I_const * R_total
     P_total = (I_const ** 2) * R_total
     NI_total = total_turns * I_const
