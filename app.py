@@ -207,8 +207,7 @@ with st.sidebar:
         w_mylar_mm = col_m2.number_input("Mylar Width", value=38.8, format="%.2f")
         
         st.markdown("**Electrical Properties**")
-        # ADDED CUSTOM RESISTIVITY HERE
-        rho_cu = st.number_input("Copper Resistivity (Ω·m)", value=1.7139e-8, format="%.4e", help="Default matches your existing calculator standard.")
+        rho_cu = st.number_input("Copper Resistivity (Ω·m)", value=1.71211e-8, format="%.5e", help="Default matches 100.7% IACS standard commercial copper.")
 
         st.markdown("**Interface Insulation**")
         col_i1, col_i2 = st.columns(2)
@@ -319,7 +318,7 @@ def optimize_pancake_coil():
     
     total_weight_kg = weight_cu_kg + weight_al_kg + weight_mylar_kg + weight_epoxy_kg
     
-    # Electrical Math - NOW USING rho_cu FROM SIDEBAR
+    # Electrical Math
     R_total = rho_cu * (total_length_m / A_cu)
     V_req = I_const * R_total
     P_total = (I_const ** 2) * R_total
