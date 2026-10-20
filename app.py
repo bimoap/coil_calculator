@@ -1,4 +1,4 @@
-import streamlit as st
+app_code = """import streamlit as st
 import numpy as np
 import pandas as pd
 import base64
@@ -160,8 +160,8 @@ def generate_cross_section_svg(res, a_mm, b_max_mm, rad_dim_mode, plate_margin_m
 
     svg_string = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {svg_width:.1f} {svg_height:.1f}" width="100%" height="100%">'
     svg_string += svg_markers + svg_style
-    svg_string += "\n".join(svg_elements)
-    svg_string += '</svg>'
+    svg_string += "\\n".join(svg_elements)
+    svg_string += "</svg>"
     return svg_string
 
 # =====================================================================
@@ -504,9 +504,9 @@ with tool_tab1:
         st.divider()
         st.metric("ESTIMATED TOTAL POTTED ASSEMBLY MASS", f"{res['wt_total_kg']:.1f} kg", delta_color="off")
 
-# ---------------------------------------------------------------------
-# TAB 2: NEW COPPER STRIP MAXIMUM CURRENT CAPACITY
-# ---------------------------------------------------------------------
+# =====================================================================
+# 6. TAB 2: COPPER STRIP MAXIMUM CURRENT CAPACITY
+# =====================================================================
 with tool_tab2:
     st.subheader("⚡ Copper Strip Maximum Recommended Current Calculator")
     st.markdown("""
@@ -600,3 +600,13 @@ with tool_tab2:
     1. **Recommended Current:** $I_{\\text{max}} = 16.86 \\times Z \\times \\sqrt{K \\times W}$ (where dimensions are in millimeters).
     2. **Current Density:** $J = \\frac{I_{\\text{max}}}{\\text{Area}}$
     """)
+"""
+
+# Safely write code to both the root directory and clone directory to avoid deployment breakages
+for filepath in ["app.py", "coil_calculator/app.py"]:
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(app_code)
+        print(f"Successfully wrote clean Python app to {filepath}")
+    except Exception as e:
+        print(f"Could not write to {filepath}: {e}")
