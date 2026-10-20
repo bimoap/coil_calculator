@@ -9,7 +9,7 @@ st.set_page_config(page_title="Coil Engineering Tools", page_icon="⚡", layout=
 
 # --- NAVIGATION ---
 st.sidebar.title("🧰 Navigation")
-app_mode = st.sidebar.radio("Select Engineering Tool:", ["Dynamic Coil Designer", "Maximum Current Calculator"])
+app_mode = st.sidebar.radio("Select Engineering Tool:", ["Dynamic Coil Designer", "Maximum Current & Sizing Calculator"])
 st.sidebar.divider()
 
 # =====================================================================
@@ -19,8 +19,6 @@ if app_mode == "Dynamic Coil Designer":
     
     # --- SVG GENERATION FUNCTION ---
     def generate_cross_section_svg(res, a_mm, b_max_mm, rad_dim_mode, plate_margin_mm, cooling_plates_list, num_pancakes):
-        """Generates a proportional SVG cross-section drawing with dynamic Light/Dark mode and adaptive labels."""
-        
         max_dim_mm = max(b_max_mm * 1.1, res['ax_total_mm'] * 1.1)
         target_svg_size = 600 
         scale = target_svg_size / max_dim_mm 
@@ -66,13 +64,11 @@ if app_mode == "Dynamic Coil Designer":
                 svg_elements.append(f'<line x1="{x2_px}" y1="{y2_px}" x2="{x2_px}" y2="{y2_px+off_px+5}" class="dim-line-thin"/>')
                 svg_elements.append(f'<text x="{(x1_px+x2_px)/2}" y="{y1_px+off_px+15}" class="dim-text" text-anchor="middle">{label_text}</text>')
 
-        # Background / Mold Limits
         svg_elements.append(f'<line x1="{origin_x}" y1="{pad_top}" x2="{origin_x}" y2="{svg_height-pad_bottom}" class="dim-line" stroke-dasharray="5,5"/>')
         draw_rect(a_mm, 0, b_max_mm-a_mm, res['ax_total_mm'], "epoxy", opacity=0.5) 
         svg_elements.append(f'<line x1="{origin_x + a_mm*scale}" y1="{pad_top}" x2="{origin_x + a_mm*scale}" y2="{svg_height-pad_bottom}" class="mold-line"/>')
         svg_elements.append(f'<line x1="{origin_x + b_max_mm*scale}" y1="{pad_top}" x2="{origin_x + b_max_mm*scale}" y2="{svg_height-pad_bottom}" class="mold-line"/>')
 
-        # Draw The Stack
         current_y_mm = 0.0
         pancake_height_mm = res['ax_pancakes_mm'] / num_pancakes
         insul_height_mm = res['ax_insul_mm'] / (num_pancakes * 2)
@@ -99,7 +95,6 @@ if app_mode == "Dynamic Coil Designer":
              draw_rect(a_mm, current_y_mm, b_max_mm-a_mm, h_plate, "al")
              current_y_mm += h_plate
 
-        # Adaptive Labels
         if rad_dim_mode == "Diameter":
             label_in = f"Plate ID: {a_mm*2:.1f}"
             label_out = f"Plate OD: {b_max_mm*2:.1f}"
@@ -158,25 +153,16 @@ if app_mode == "Dynamic Coil Designer":
     st.title("⚡ Pancake Coil Designer & Optimizer")
     st.markdown("Design stacked, potted pancake coils. Adjust parameters to see instant results and download a complete BOM.")
 
-    # --- SIDEBAR / INPUTS ---
     with st.sidebar:
         st.header("⚙️ Design Parameters")
         
-        st.subheader("1. Goal & Constraints")
-        constraint_mode = st.radio(
-            "Optimization Goal:", 
-            [1, 2], 
-            index=1,
-            format_func=lambda x: "Maximize Turns (Fill Space)" if x == 1 else "Target Specific Turns"
-        )
+        constraint_mode = st.radio("Optimization Goal:", [1, 2], index=1, format_func=lambda x: "Maximize Turns (Fill Space)" if x == 1 else "Target Specific Turns")
         if constraint_mode == 2:
             target_turns_per_pancake = st.number_input("Target Turns per Pancake", min_value=1, value=172, step=1)
         else:
             target_turns_per_pancake = 172 
 
-        st.subheader("2. Radial Geometry (mm)")
         rad_dim_mode = st.radio("Input Mode:", ["Diameter", "Radius"], horizontal=True)
-        
         col_r1, col_r2 = st.columns(2)
         
         if rad_dim_mode == "Diameter":
@@ -194,58 +180,47 @@ if app_mode == "Dynamic Coil Designer":
             plate_id_mm = a_mm * 2.0
             plate_od_mm = b_max_mm * 2.0
             
-        plate_margin_mm = st.number_input("Epoxy Edge Margin", value=0.5, step=0.1, format="%.1f", help="Clearance to allow 2 layers of fiberglass between copper and inner/outer mold walls.")
-
-        st.subheader("3. Stack Config")
+        plate_margin_mm = st.number_input("Epoxy Edge Margin", value=0.5, step=0.1, format="%.1f")
         num_pancakes = st.number_input("Number of Pancakes", min_value=1, value=2, step=1)
-        plates_input = st.text_input("Cooling Plates (mm, comma-separated)", value="6.0, 6.0, 6.0", help="Define thickness of plates from bottom to top.")
+        plates_input = st.text_input("Cooling Plates (mm, comma-separated)", value="6.0, 6.0, 6.0")
         
         try:
             cooling_plates_mm = [float(x.strip()) for x in plates_input.split(',')]
         except ValueError:
-            st.error("Invalid format for cooling plates. Use numbers separated by commas.")
+            st.error("Invalid format for cooling plates.")
             st.stop()
 
-        with st.expander("4. Material Details (Advanced)", expanded=False):
-            st.markdown("**Conductor & Turn Insulation**")
+        with st.expander("4. Material Details", expanded=False):
             col_m1, col_m2 = st.columns(2)
             t_cu_mm = col_m1.number_input("Cu Thickness", value=0.381, format="%.4f")
             w_cu_mm = col_m2.number_input("Cu Width", value=38.1, format="%.2f")
             t_mylar_mm = col_m1.number_input("Mylar Thickness", value=0.0762, format="%.4f")
             w_mylar_mm = col_m2.number_input("Mylar Width", value=38.8, format="%.2f")
-            
-            st.markdown("**Electrical Properties**")
-            rho_cu = st.number_input("Copper Resistivity (Ω·m)", value=1.71211e-8, format="%.5e", help="Default matches 100.7% IACS standard commercial copper.")
-
-            st.markdown("**Interface Insulation**")
+            rho_cu = st.number_input("Copper Resistivity (Ω·m)", value=1.71211e-8, format="%.5e")
             col_i1, col_i2 = st.columns(2)
             t_fiberglass_mm = col_i1.number_input("Fiberglass Tk.", value=0.23, format="%.3f")
             fiberglass_layers = col_i2.number_input("Layers/Interface", min_value=1, value=2)
-            
-            st.markdown("**Other**")
-            MLT_input_m = st.number_input("Fixed MLT (m) [0=Auto]", value=0.0, format="%.3f", help="Set >0 for non-circular coils.")
+            MLT_input_m = st.number_input("Fixed MLT (m) [0=Auto]", value=0.0, format="%.3f")
 
         with st.expander("5. Operating Conditions", expanded=False):
             I_const = st.number_input("Operating Current (A)", value=50.0, step=1.0, format="%.1f")
-            dT_water = st.number_input("Allowed Water Temp Rise (°C)", value=10.0, step=1.0, format="%.1f")
+            dT_water = st.number_input("Allowed Temp Rise (°C)", value=10.0, step=1.0, format="%.1f")
 
-        # --- SIGNATURE ---
         st.divider()
-        st.caption("⚡ **Pancake Coil Optimizer v1.0**")
-        st.caption("Designed by Bimo Adhi Prastya")
+        st.caption("⚡ **Pancake Coil Optimizer v1.0**\nDesigned by Bimo Adhi Prastya")
 
     # --- CONSTANTS ---
-    density_cu = 8960.0       # kg/m^3
-    density_al = 2700.0       # kg/m^3
-    density_epoxy = 1150.0    # kg/m^3
-    density_mylar = 1390.0    # kg/m^3 
+    density_cu = 8960.0       
+    density_al = 2700.0       
+    density_epoxy = 1150.0    
+    density_mylar = 1390.0     
     cp_water = 4186.0
     rho_water = 1000.0
 
     # ================= CALCULATION LOGIC =================
     def optimize_pancake_coil():
         if w_mylar_mm < w_cu_mm:
-            st.error(f"**Design Error:** Mylar width ({w_mylar_mm} mm) cannot be smaller than copper width ({w_cu_mm} mm).")
+            st.error(f"Design Error: Mylar width cannot be smaller than copper width.")
             return None
             
         winding_a_mm = a_mm + plate_margin_mm
@@ -261,7 +236,7 @@ if app_mode == "Dynamic Coil Designer":
             constraint_type = "Turns Constrained"
             
         if N_per_pancake <= 0:
-            st.error("**Design Error:** Available radial space is too small for even one turn.")
+            st.error("Design Error: Radial space too small for one turn.")
             return None
             
         actual_build_mm = N_per_pancake * layer_thickness_mm
@@ -277,296 +252,183 @@ if app_mode == "Dynamic Coil Designer":
             MLT_m = (2 * np.pi * mean_radius_mm) / 1000.0
             shape_type = "Circular (Dynamic MLT)"
             
-        w_pancake_axial_mm = w_mylar_mm
-        total_pancakes_axial_mm = num_pancakes * w_pancake_axial_mm
+        total_pancakes_axial_mm = num_pancakes * w_mylar_mm
         total_plates_axial_mm = sum(cooling_plates_mm)
-        interface_thickness_mm = fiberglass_layers * t_fiberglass_mm
-        num_interfaces = num_pancakes * 2
-        total_insulation_axial_mm = num_interfaces * interface_thickness_mm
+        total_insulation_axial_mm = (num_pancakes * 2) * (fiberglass_layers * t_fiberglass_mm)
         total_assembly_axial_mm = total_pancakes_axial_mm + total_plates_axial_mm + total_insulation_axial_mm
         
         total_turns = N_per_pancake * num_pancakes
         total_length_m = total_turns * MLT_m
-        length_per_pancake_m = total_length_m / num_pancakes
         
-        # Weight, Volume & Current Density Math
-        t_cu_m = t_cu_mm / 1000.0
-        w_cu_m = w_cu_mm / 1000.0
-        A_cu = t_cu_m * w_cu_m
         A_cu_mm2 = t_cu_mm * w_cu_mm
         J_A_mm2 = I_const / A_cu_mm2
-        
-        volume_cu_m3 = A_cu * total_length_m
-        weight_cu_kg = volume_cu_m3 * density_cu
-
-        # Mylar Weight Math
-        t_mylar_m = t_mylar_mm / 1000.0
-        w_mylar_m = w_mylar_mm / 1000.0
-        A_mylar = t_mylar_m * w_mylar_m
-        volume_mylar_m3 = A_mylar * total_length_m
-        weight_mylar_kg = volume_mylar_m3 * density_mylar
+        weight_cu_kg = ((t_cu_mm/1000.0) * (w_cu_mm/1000.0) * total_length_m) * density_cu
+        weight_mylar_kg = ((t_mylar_mm/1000.0) * (w_mylar_mm/1000.0) * total_length_m) * density_mylar
         
         r_in_m = a_mm / 1000.0
         plate_r_out_m = (winding_a_mm + actual_build_mm + plate_margin_mm) / 1000.0
-        area_plate_m2 = np.pi * (plate_r_out_m**2 - r_in_m**2)
-        total_plates_axial_m = total_plates_axial_mm / 1000.0
-        volume_al_m3 = area_plate_m2 * total_plates_axial_m
-        weight_al_kg = volume_al_m3 * density_al
+        weight_al_kg = (np.pi * (plate_r_out_m**2 - r_in_m**2) * (total_plates_axial_mm/1000.0)) * density_al
         
-        r_out_max_m = b_max_mm / 1000.0
-        v_gross_mold_m3 = np.pi * (r_out_max_m**2 - r_in_m**2) * (total_assembly_axial_mm / 1000.0)
-        winding_a_m = winding_a_mm / 1000.0
-        winding_b_m = winding_b_actual_mm / 1000.0
-        v_winding_block_m3 = np.pi * (winding_b_m**2 - winding_a_m**2) * (total_pancakes_axial_mm / 1000.0)
-        v_plates_insul_m3 = np.pi * (plate_r_out_m**2 - r_in_m**2) * ((total_plates_axial_mm + total_insulation_axial_mm) / 1000.0)
+        v_gross_mold = np.pi * ((b_max_mm/1000.0)**2 - r_in_m**2) * (total_assembly_axial_mm / 1000.0)
+        v_winding = np.pi * ((winding_b_actual_mm/1000.0)**2 - (winding_a_mm/1000.0)**2) * (total_pancakes_axial_mm / 1000.0)
+        v_plates_insul = np.pi * (plate_r_out_m**2 - r_in_m**2) * ((total_plates_axial_mm + total_insulation_axial_mm) / 1000.0)
         
-        volume_epoxy_m3 = max(0.0, v_gross_mold_m3 - v_winding_block_m3 - v_plates_insul_m3)
-        vol_epoxy_L = volume_epoxy_m3 * 1000.0
-        weight_epoxy_kg = volume_epoxy_m3 * density_epoxy
+        vol_epoxy_L = max(0.0, v_gross_mold - v_winding - v_plates_insul) * 1000.0
+        weight_epoxy_kg = (vol_epoxy_L / 1000.0) * density_epoxy
         
-        total_weight_kg = weight_cu_kg + weight_al_kg + weight_mylar_kg + weight_epoxy_kg
-        
-        # Electrical Math
-        R_total = rho_cu * (total_length_m / A_cu)
+        R_total = rho_cu * (total_length_m / ((t_cu_mm/1000.0) * (w_cu_mm/1000.0)))
         V_req = I_const * R_total
         P_total = (I_const ** 2) * R_total
         NI_total = total_turns * I_const
-        mass_flow_kg_per_s = P_total / (cp_water * dT_water)
-        vol_flow_L_per_min = (mass_flow_kg_per_s / rho_water) * 1000.0 * 60.0
+        vol_flow_L_per_min = ((P_total / (cp_water * dT_water)) / rho_water) * 1000.0 * 60.0
         
         return {
-            "constraint_type": constraint_type,
-            "winding_a_mm": winding_a_mm,
-            "winding_b_actual_mm": winding_b_actual_mm,
-            "available_space_mm": available_build_mm,
-            "unused_space_mm": unused_space_mm,
-            "fits_window": fits_window,
-            "turns_per_pancake": N_per_pancake,
-            "total_turns": total_turns,
-            "MLT_m": MLT_m,
-            "shape_type": shape_type,
-            "length_m": total_length_m,
-            "length_per_pancake_m": length_per_pancake_m,
-            "A_cu_mm2": A_cu_mm2,
-            "J_A_mm2": J_A_mm2,
-            "build_mm": actual_build_mm,
-            "wt_cu_kg": weight_cu_kg,
-            "wt_al_kg": weight_al_kg,
-            "wt_mylar_kg": weight_mylar_kg,
-            "vol_epoxy_L": vol_epoxy_L,
-            "wt_epoxy_kg": weight_epoxy_kg,
-            "wt_total_kg": total_weight_kg,
-            "R": R_total,
-            "V": V_req,
-            "P": P_total,
-            "NI": NI_total,
-            "Flow_LPM": vol_flow_L_per_min,
-            "ax_pancakes_mm": total_pancakes_axial_mm,
-            "ax_plates_mm": total_plates_axial_mm,
-            "ax_insul_mm": total_insulation_axial_mm,
+            "constraint_type": constraint_type, "winding_a_mm": winding_a_mm, "winding_b_actual_mm": winding_b_actual_mm,
+            "unused_space_mm": unused_space_mm, "fits_window": fits_window, "turns_per_pancake": N_per_pancake,
+            "total_turns": total_turns, "MLT_m": MLT_m, "shape_type": shape_type, "length_m": total_length_m,
+            "length_per_pancake_m": total_length_m / num_pancakes, "A_cu_mm2": A_cu_mm2, "J_A_mm2": J_A_mm2,
+            "build_mm": actual_build_mm, "wt_cu_kg": weight_cu_kg, "wt_al_kg": weight_al_kg, "wt_mylar_kg": weight_mylar_kg,
+            "vol_epoxy_L": vol_epoxy_L, "wt_epoxy_kg": weight_epoxy_kg, "wt_total_kg": weight_cu_kg + weight_al_kg + weight_mylar_kg + weight_epoxy_kg,
+            "R": R_total, "V": V_req, "P": P_total, "NI": NI_total, "Flow_LPM": vol_flow_L_per_min,
+            "ax_pancakes_mm": total_pancakes_axial_mm, "ax_plates_mm": total_plates_axial_mm, "ax_insul_mm": total_insulation_axial_mm,
             "ax_total_mm": total_assembly_axial_mm
         }
 
-    # ================= OUTPUT & VISUALIZATION =================
     res = optimize_pancake_coil()
-
     if res:
-        if not res['fits_window']:
-            st.warning(f"⚠️ **Warning:** Winding build exceeds available space by {abs(res['unused_space_mm']):.2f} mm!")
+        if not res['fits_window']: st.warning(f"⚠️ Warning: Winding build exceeds available space by {abs(res['unused_space_mm']):.2f} mm!")
         
-        # --- EXPORT DATA LOGIC ---
-        export_dict = {
-            "Constraint Mode": [res['constraint_type']],
-            "Pancakes in Series": [num_pancakes],
-            "Turns per Pancake": [res['turns_per_pancake']],
-            "Total Turns": [res['total_turns']],
-            "Operating Current (A)": [I_const],
-            "Current Density (A/mm^2)": [res['J_A_mm2']],
-            "Ampere-Turns (AT)": [res['NI']],
-            "Resistance (Ohms)": [res['R']],
-            "Voltage Drop (V)": [res['V']],
-            "Power (W)": [res['P']],
-            "Required Cooling (LPM)": [res['Flow_LPM']],
-            "Input Mode Used": [rad_dim_mode],
-            "Cooling Plate ID (mm)": [plate_id_mm],
-            "Cooling Plate OD (mm)": [plate_od_mm],
-            "Winding Inner Radius (mm)": [res['winding_a_mm']],
-            "Winding Inner Diameter (mm)": [res['winding_a_mm'] * 2.0],
-            "Radial Build (mm)": [res['build_mm']],
-            "Final Outer Radius (mm)": [res['winding_b_actual_mm']],
-            "Final Outer Diameter (mm)": [res['winding_b_actual_mm'] * 2.0],
-            "Remaining Radial Slack (mm)": [res['unused_space_mm']],
-            "Total Axial Height (mm)": [res['ax_total_mm']],
-            "Applied MLT (m)": [res['MLT_m']],
-            "Total Conductor Length (m)": [res['length_m']],
-            "Conductor Length per Pancake (m)": [res['length_per_pancake_m']],
-            "Total Copper Mass (kg)": [res['wt_cu_kg']],
-            "Total Aluminum Mass (kg)": [res['wt_al_kg']],
-            "Total Mylar Mass (kg)": [res['wt_mylar_kg']],
-            "Epoxy Volume (Liters)": [res['vol_epoxy_L']],
-            "Potting Epoxy Mass (kg)": [res['wt_epoxy_kg']],
-            "Total Assembly Mass (kg)": [res['wt_total_kg']]
-        }
-        
-        df_export = pd.DataFrame(export_dict)
-        csv_data = df_export.to_csv(index=False).encode('utf-8')
-
-        # --- TOP LEVEL METRICS & EXPORT BUTTON ---
-        col1, col2, col3, col4, col5, col6 = st.columns([1.2, 1, 1, 1, 1, 1.2])
-        col1.metric("Total Ampere-Turns", f"{res['NI']:,.0f} AT", f"{res['total_turns']} turns @ {I_const} A", delta_color="off")
-        col2.metric("Current Density", f"{res['J_A_mm2']:.2f} A/mm²", f"{I_const} A / {res['A_cu_mm2']:.2f} mm²", delta_color="off")
-        col3.metric("Power Dissipation", f"{res['P']:.1f} W", f"{res['V']:.1f} V @ {I_const} A", delta_color="off")
-        col4.metric("Total Resistance", f"{res['R']:.4f} Ω", f"{res['length_per_pancake_m']:.1f} m/pancake × {num_pancakes}", delta_color="off")
-        col5.metric("Required Cooling", f"{res['Flow_LPM']:.1f} L/min", f"ΔT = {dT_water}°C", delta_color="off")
-        
-        with col6:
-            st.write("") 
-            st.download_button(
-                label="📥 Download CSV",
-                data=csv_data,
-                file_name="pancake_coil_design.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-            
+        col1, col2, col3, col4, col5 = st.columns(5)
+        col1.metric("Ampere-Turns", f"{res['NI']:,.0f} AT")
+        col2.metric("Current Density", f"{res['J_A_mm2']:.2f} A/mm²")
+        col3.metric("Power Dissipation", f"{res['P']:.1f} W")
+        col4.metric("Resistance", f"{res['R']:.4f} Ω")
+        col5.metric("Cooling Flow", f"{res['Flow_LPM']:.1f} LPM")
         st.divider()
         
-        # --- TABS ---
         tab1, tab2, tab3 = st.tabs(["📊 Specs & Data", "📐 Engineering Schematic", "⚖️ Bill of Materials"])
-        
         with tab1:
             col_rad, col_ax = st.columns(2)
-            
             with col_rad:
-                st.subheader("Radial Dimensions & Turns")
-                st.text(f"Mode: {res['constraint_type']}")
-                
-                df_rad = pd.DataFrame({
-                    "Parameter": [
-                        "Cooling Plate Limit (Inner)", 
-                        "Winding Inner Border", 
-                        "Turns per Pancake",
-                        "Actual Radial Build", 
-                        "Winding Outer Border", 
-                        "Cooling Plate Limit (Outer)", 
-                        "Remaining 'Slack'"
-                    ],
-                    "Value": [
-                        f"{a_mm:.2f} mm Rad (ID: {plate_id_mm:.2f})",
-                        f"{res['winding_a_mm']:.2f} mm Rad (ID: {res['winding_a_mm']*2:.2f})",
-                        f"{res['turns_per_pancake']} turns",
-                        f"{res['build_mm']:.2f} mm (x{num_pancakes} cakes)",
-                        f"{res['winding_b_actual_mm']:.2f} mm Rad (OD: {res['winding_b_actual_mm']*2:.2f})",
-                        f"{b_max_mm:.2f} mm Rad (OD: {plate_od_mm:.2f})",
-                        f"{res['unused_space_mm']:.2f} mm"
-                    ]
-                })
-                st.table(df_rad.set_index("Parameter"))
-                st.caption(f"Applied MLT: {res['MLT_m']:.3f} m ({res['shape_type']})")
-
+                st.subheader("Radial Dimensions")
+                st.table(pd.DataFrame({"Parameter": ["Winding Inner", "Actual Radial Build", "Winding Outer", "Remaining 'Slack'"],
+                                     "Value": [f"{res['winding_a_mm']:.2f} mm", f"{res['build_mm']:.2f} mm", f"{res['winding_b_actual_mm']:.2f} mm", f"{res['unused_space_mm']:.2f} mm"]}).set_index("Parameter"))
             with col_ax:
-                st.subheader("Axial Stack Dimensions (mm)")
-                
-                df_ax = pd.DataFrame({
-                    "Component Stack": ["Total Pancakes (Mylar width)", "Total Cooling Plates", "Total Interface Insul (Fiberglass)", "---", "OVERALL ASSEMBLY HEIGHT"],
-                    "Value": [
-                        f"{res['ax_pancakes_mm']:.2f} mm",
-                        f"{res['ax_plates_mm']:.2f} mm",
-                        f"{res['ax_insul_mm']:.2f} mm",
-                        "",
-                        f"{res['ax_total_mm']:.2f} mm"
-                    ]
-                })
-                st.table(df_ax.set_index("Component Stack"))
-
+                st.subheader("Axial Stack (mm)")
+                st.table(pd.DataFrame({"Stack": ["Total Pancakes", "Total Plates", "Total Insul", "OVERALL HEIGHT"],
+                                     "Value": [f"{res['ax_pancakes_mm']:.2f} mm", f"{res['ax_plates_mm']:.2f} mm", f"{res['ax_insul_mm']:.2f} mm", f"{res['ax_total_mm']:.2f} mm"]}).set_index("Stack"))
         with tab2:
-            st.subheader("Cross-Sectional View (Proportional)")
-            st.caption("Visual representation of the stack buildup based on current parameters. Epoxy potting dynamically adapts to Dark/Light mode.")
-            
+            st.subheader("Cross-Sectional View")
             svg_xml = generate_cross_section_svg(res, a_mm, b_max_mm, rad_dim_mode, plate_margin_mm, cooling_plates_mm, num_pancakes)
-            b64 = base64.b64encode(svg_xml.encode('utf-8')).decode("utf-8")
-            html = r'<img src="data:image/svg+xml;base64,%s" width="100%%"/>' % b64
-            st.markdown(html, unsafe_allow_html=True)
-
+            st.markdown(r'<img src="data:image/svg+xml;base64,%s" width="100%%"/>' % base64.b64encode(svg_xml.encode('utf-8')).decode("utf-8"), unsafe_allow_html=True)
         with tab3:
-            st.subheader("Estimated Assembly Weights & Volumes")
-            
-            col_w1, col_w2 = st.columns(2)
-            col_w3, col_w4 = st.columns(2)
-            
-            col_w1.metric("Total Copper Mass", f"{res['wt_cu_kg']:.1f} kg", f"{res['total_turns']} total turns")
-            col_w2.metric("Total Aluminum Mass", f"{res['wt_al_kg']:.1f} kg")
-            col_w3.metric("Total Mylar Mass", f"{res['wt_mylar_kg']:.1f} kg")
-            col_w4.metric("Potting Epoxy Mass", f"{res['wt_epoxy_kg']:.1f} kg", f"{res['vol_epoxy_L']:.1f} Liters")
-            
-            st.divider()
-            st.metric("ESTIMATED TOTAL POTTED ASSEMBLY MASS", f"{res['wt_total_kg']:.1f} kg", delta_color="off")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Copper Mass", f"{res['wt_cu_kg']:.1f} kg")
+            c2.metric("Aluminum Mass", f"{res['wt_al_kg']:.1f} kg")
+            c3.metric("Mylar Mass", f"{res['wt_mylar_kg']:.1f} kg")
+            c4.metric("Epoxy Mass", f"{res['wt_epoxy_kg']:.1f} kg")
+            st.metric("TOTAL MASS", f"{res['wt_total_kg']:.1f} kg")
 
 
 # =====================================================================
-# TOOL 2: MAXIMUM CURRENT CALCULATOR
+# TOOL 2: MAXIMUM CURRENT & SIZING CALCULATOR
 # =====================================================================
-elif app_mode == "Maximum Current Calculator":
+elif app_mode == "Maximum Current & Sizing Calculator":
     
-    def calculate_max_current(w_mm, z_mm, k):
-        """Core calculation for maximum current and current density."""
-        if w_mm <= 0 or z_mm <= 0 or k < 0:
-            return 0.0, 0.0
-        
-        # Recommended max current = 16.86 * Z * sqrt(K * W)
-        max_current = 16.86 * z_mm * math.sqrt(k * w_mm)
-        
-        # Current density = Current / (W * Z)
-        current_density = max_current / (w_mm * z_mm)
-        
-        return max_current, current_density
+    st.title("⚡ Coil Current & Sizing Tool")
+    
+    # --- FORMULAS PROMINENTLY AT THE TOP ---
+    st.info("### Governing Formulas")
+    st.latex(r"I_{max} = 16.86 \times Z \times \sqrt{K \times W}")
+    st.latex(r"W = \frac{(I_{max} / (16.86 \times Z))^2}{K}")
+    st.latex(r"Z = \frac{I_{max}}{16.86 \times \sqrt{K \times W}}")
+    st.caption("*Where: $I$ = Current (A), $W$ = Width (mm), $Z$ = Thickness (mm), $K$ = Cooling Plates*")
+    st.divider()
 
-    st.title("⚡ Coil Maximum Current Tool")
-    st.write("Calculate the maximum operational current and density based on copper strip dimensions and cooling plates.")
-
-    # 1. Unit Toggle
+    # 1. Mode Selection
+    calc_mode = st.radio("What do you want to calculate?", 
+                         ["Maximum Current", "Required Copper Width", "Required Copper Thickness"], 
+                         horizontal=True)
+    
+    # 2. Unit Toggle
     unit = st.radio("Measurement Units:", ["Metric (mm)", "Imperial (inch/thou)"], horizontal=True)
 
-    # 2. Update Dropdown Options Based on Unit
     if unit == "Metric (mm)":
         width_opts = ["50.8", "38.1"]
         thick_opts = ["0.787", "1.0", "1.194", "1.245", "1.372"]
-        st.caption("Values are in millimeters (mm)")
     else:
         width_opts = ["2.0", "1.5"]
         thick_opts = ["31", "39.37", "47", "49", "54"]
-        st.caption("Width in inches, Thickness in thou")
 
     # 3. Input Fields
     col1, col2 = st.columns(2)
 
     with col1:
-        w_input = st.selectbox("Copper Strip Width (W):", width_opts)
-        z_input = st.selectbox("Copper Strip Thickness (Z):", thick_opts)
+        # Show inputs based on the calculation mode
+        if calc_mode in ["Maximum Current", "Required Copper Thickness"]:
+            w_input = st.selectbox("Copper Strip Width (W):", width_opts) if calc_mode == "Maximum Current" else st.number_input("Copper Strip Width (W):", value=float(width_opts[0]), format="%.3f")
+            
+        if calc_mode in ["Maximum Current", "Required Copper Width"]:
+            z_input = st.selectbox("Copper Strip Thickness (Z):", thick_opts) if calc_mode == "Maximum Current" else st.number_input("Copper Strip Thickness (Z):", value=float(thick_opts[1]), format="%.3f")
+            
+        if calc_mode in ["Required Copper Width", "Required Copper Thickness"]:
+            i_input = st.number_input("Target Maximum Current (A):", value=50.0, min_value=0.1, step=1.0)
 
     with col2:
-        k = st.number_input("Number of Cooling Plates (K):", min_value=1, value=1, step=1)
+        # Strictly limit to 1 or 2, default to index 1 (which is 2)
+        k = st.selectbox("Number of Cooling Plates (K):", options=[1, 2], index=1)
 
-    # 4. Calculation and Results
-    if st.button("Calculate Limit", type="primary"):
-        w_val = float(w_input)
-        z_val = float(z_input)
+    # 4. Calculation Logic
+    if st.button(f"Calculate {calc_mode}", type="primary"):
         
-        # Convert to metric for the formula calculation if Imperial is selected
-        if unit == "Imperial (inch/thou)":
-            w_mm = w_val * 25.4         # inches to mm
-            z_mm = z_val * 0.0254       # thou to mm
-        else:
-            w_mm = w_val
-            z_mm = z_val
-            
-        max_c, density = calculate_max_current(w_mm, z_mm, k)
+        # Helper: Convert input to metric for math
+        def to_metric_w(val): return val * 25.4 if unit == "Imperial (inch/thou)" else val
+        def to_metric_z(val): return val * 0.0254 if unit == "Imperial (inch/thou)" else val
         
-        # Display Results
-        st.success(f"**Recommended Max Current:** {max_c:.2f} A")
-        st.info(f"**Current Density:** {density:.2f} A/mm²")
+        # Helper: Convert output back to imperial if needed
+        def from_metric_w(val): return val / 25.4 if unit == "Imperial (inch/thou)" else val
+        def from_metric_z(val): return val / 0.0254 if unit == "Imperial (inch/thou)" else val
+        
+        try:
+            if calc_mode == "Maximum Current":
+                w_mm = to_metric_w(float(w_input))
+                z_mm = to_metric_z(float(z_input))
+                
+                max_c = 16.86 * z_mm * math.sqrt(k * w_mm)
+                density = max_c / (w_mm * z_mm)
+                
+                st.success(f"**Recommended Max Current:** {max_c:.2f} A")
+                st.info(f"**Current Density:** {density:.2f} A/mm²")
+                
+            elif calc_mode == "Required Copper Width":
+                z_mm = to_metric_z(float(z_input))
+                
+                # Formula: W = (I / (16.86 * Z))^2 / K
+                w_req_mm = (i_input / (16.86 * z_mm))**2 / k
+                w_final = from_metric_w(w_req_mm)
+                
+                density = i_input / (w_req_mm * z_mm)
+                unit_label = "inches" if unit == "Imperial (inch/thou)" else "mm"
+                
+                st.success(f"**Required Copper Width:** {w_final:.3f} {unit_label}")
+                st.info(f"**Resulting Current Density:** {density:.2f} A/mm²")
+                
+            elif calc_mode == "Required Copper Thickness":
+                w_mm = to_metric_w(float(w_input))
+                
+                # Formula: Z = I / (16.86 * sqrt(K * W))
+                z_req_mm = i_input / (16.86 * math.sqrt(k * w_mm))
+                z_final = from_metric_z(z_req_mm)
+                
+                density = i_input / (w_mm * z_req_mm)
+                unit_label = "thou" if unit == "Imperial (inch/thou)" else "mm"
+                
+                st.success(f"**Required Copper Thickness:** {z_final:.3f} {unit_label}")
+                st.info(f"**Resulting Current Density:** {density:.2f} A/mm²")
+                
+        except Exception as e:
+            st.error("Error in calculation. Please check your inputs.")
 
     # --- SIGNATURE ---
     st.divider()
-    st.caption("⚡ **Maximum Current Tool v1.0**")
-    st.caption("Designed by Bimo Adhi Prastya")
+    st.caption("⚡ **Coil Current & Sizing Tool v1.1**\nDesigned by Bimo Adhi Prastya")
