@@ -302,7 +302,7 @@ if app_mode == "Dynamic Coil Designer":
         col1.metric("Ampere-Turns", f"{res['NI']:,.0f} AT")
         col2.metric("Current Density", f"{res['J_A_mm2']:.2f} A/mm²")
         col3.metric("Power Dissipation", f"{res['P']:.1f} W")
-        col4.metric("Resistance", f"{res['R']:.4f} Ω")
+        col4.metric("Resistance", f"{res['R']:.6f} Ω") # <--- Changed from .4f to .6f
         col5.metric("Cooling Flow", f"{res['Flow_LPM']:.1f} LPM")
         st.divider()
         
