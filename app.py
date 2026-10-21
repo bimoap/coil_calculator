@@ -9,7 +9,11 @@ st.set_page_config(page_title="Coil Engineering Tools", page_icon="⚡", layout=
 
 # --- NAVIGATION ---
 st.sidebar.title("🧰 Navigation")
-app_mode = st.sidebar.radio("Select Engineering Tool:", ["Dynamic Coil Designer", "Maximum Current & Sizing Calculator"])
+app_mode = st.sidebar.radio("Select Engineering Tool:", [
+    "Dynamic Coil Designer", 
+    "Maximum Current & Sizing Calculator",
+    "Simple Coil Resistance Calculator"
+])
 st.sidebar.divider()
 
 # =====================================================================
@@ -302,7 +306,7 @@ if app_mode == "Dynamic Coil Designer":
         col1.metric("Ampere-Turns", f"{res['NI']:,.0f} AT")
         col2.metric("Current Density", f"{res['J_A_mm2']:.2f} A/mm²")
         col3.metric("Power Dissipation", f"{res['P']:.1f} W")
-        col4.metric("Resistance", f"{res['R']:.6f} Ω") # <--- Changed from .4f to .6f
+        col4.metric("Resistance", f"{res['R']:.6f} Ω")
         col5.metric("Cooling Flow", f"{res['Flow_LPM']:.1f} LPM")
         st.divider()
         
@@ -337,7 +341,6 @@ elif app_mode == "Maximum Current & Sizing Calculator":
     
     st.title("⚡ Coil Current & Sizing Tool")
     
-    # --- FORMULAS PROMINENTLY AT THE TOP ---
     st.info("### Governing Formulas")
     st.latex(r"I_{max} = C \times Z \times \sqrt{K \times W}")
     st.latex(r"W = \frac{(I_{max} / (C \times Z))^2}{K}")
@@ -345,7 +348,6 @@ elif app_mode == "Maximum Current & Sizing Calculator":
     st.caption("*Where: $I$ = Current (A), $W$ = Width (mm), $Z$ = Thickness (mm), $K$ = Cooling Plates, $C$ = Coil Factor*")
     st.divider()
 
-    # 1. Mode & Coil Type Selection
     calc_mode = st.radio("What do you want to calculate?", 
                          ["Maximum Current", "Required Copper Width", "Required Copper Thickness"], 
                          horizontal=True)
@@ -354,24 +356,20 @@ elif app_mode == "Maximum Current & Sizing Calculator":
                          ["Standard (16.86)", "High Performance (25.20)"], 
                          horizontal=True)
                          
-    # Set the mathematical factor based on selection
     coil_factor = 16.86 if "Standard" in coil_type else 25.20
     
-    # 2. Unit Toggle
     unit = st.radio("Measurement Units:", ["Metric (mm)", "Imperial (inch/thou)"], horizontal=True)
 
     if unit == "Metric (mm)":
-        width_opts = ["50.8", "38.1"]
-        thick_opts = ["0.787", "1.0", "1.194", "1.245", "1.372"]
+        width_opts = ["50.8", "38.1", "16.0", "11.0"]
+        thick_opts = ["0.2", "0.787", "1.0", "1.194", "1.245", "1.372"]
     else:
-        width_opts = ["2.0", "1.5"]
-        thick_opts = ["31", "39.37", "47", "49", "54"]
+        width_opts = ["2.0", "1.5", "0.630", "0.433"]
+        thick_opts = ["7.87", "31", "39.37", "47", "49", "54"]
 
-    # 3. Input Fields
     col1, col2 = st.columns(2)
 
     with col1:
-        # Show inputs based on the calculation mode
         if calc_mode in ["Maximum Current", "Required Copper Thickness"]:
             w_input = st.selectbox("Copper Strip Width (W):", width_opts) if calc_mode == "Maximum Current" else st.number_input("Copper Strip Width (W):", value=float(width_opts[0]), format="%.3f")
             
@@ -382,17 +380,11 @@ elif app_mode == "Maximum Current & Sizing Calculator":
             i_input = st.number_input("Target Maximum Current (A):", value=50.0, min_value=0.1, step=1.0)
 
     with col2:
-        # Strictly limit to 1 or 2, default to index 1 (which is 2)
         k = st.selectbox("Number of Cooling Plates (K):", options=[1, 2], index=1)
 
-    # 4. Calculation Logic
     if st.button(f"Calculate {calc_mode}", type="primary"):
-        
-        # Helper: Convert input to metric for math
         def to_metric_w(val): return val * 25.4 if unit == "Imperial (inch/thou)" else val
         def to_metric_z(val): return val * 0.0254 if unit == "Imperial (inch/thou)" else val
-        
-        # Helper: Convert output back to imperial if needed
         def from_metric_w(val): return val / 25.4 if unit == "Imperial (inch/thou)" else val
         def from_metric_z(val): return val / 0.0254 if unit == "Imperial (inch/thou)" else val
         
@@ -409,11 +401,8 @@ elif app_mode == "Maximum Current & Sizing Calculator":
                 
             elif calc_mode == "Required Copper Width":
                 z_mm = to_metric_z(float(z_input))
-                
-                # Formula: W = (I / (C * Z))^2 / K
                 w_req_mm = (i_input / (coil_factor * z_mm))**2 / k
                 w_final = from_metric_w(w_req_mm)
-                
                 density = i_input / (w_req_mm * z_mm)
                 unit_label = "inches" if unit == "Imperial (inch/thou)" else "mm"
                 
@@ -422,11 +411,8 @@ elif app_mode == "Maximum Current & Sizing Calculator":
                 
             elif calc_mode == "Required Copper Thickness":
                 w_mm = to_metric_w(float(w_input))
-                
-                # Formula: Z = I / (C * sqrt(K * W))
                 z_req_mm = i_input / (coil_factor * math.sqrt(k * w_mm))
                 z_final = from_metric_z(z_req_mm)
-                
                 density = i_input / (w_mm * z_req_mm)
                 unit_label = "thou" if unit == "Imperial (inch/thou)" else "mm"
                 
@@ -436,6 +422,68 @@ elif app_mode == "Maximum Current & Sizing Calculator":
         except Exception as e:
             st.error("Error in calculation. Please check your inputs.")
 
-    # --- SIGNATURE ---
     st.divider()
     st.caption("⚡ **Coil Current & Sizing Tool v1.2**\nDesigned by Bimo Adhi Prastya")
+
+# =====================================================================
+# TOOL 3: SIMPLE COIL RESISTANCE CALCULATOR
+# =====================================================================
+elif app_mode == "Simple Coil Resistance Calculator":
+
+    st.title("⚡ Simple Coil Resistance Calculator")
+    
+    st.info("### Governing Formula")
+    st.latex(r"R = \rho \times \frac{L}{A}")
+    st.caption("*Where: $R$ = Resistance (Ω), $\rho$ = Copper Resistivity, $L$ = Total Length (m), $A$ = Cross-Sectional Area (m²)*")
+    st.divider()
+
+    unit = st.radio("Measurement Units:", ["Metric (mm)", "Imperial (inch/thou)"], horizontal=True)
+
+    if unit == "Metric (mm)":
+        width_opts = ["50.8", "38.1", "16.0", "11.0"]
+        thick_opts = ["0.2", "0.787", "1.0", "1.194", "1.245", "1.372"]
+    else:
+        width_opts = ["2.0", "1.5", "0.630", "0.433"]
+        thick_opts = ["7.87", "31", "39.37", "47", "49", "54"]
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        w_input = st.selectbox("Copper Strip Width (W):", width_opts)
+        z_input = st.selectbox("Copper Strip Thickness (Z):", thick_opts)
+        rho_cu = st.number_input("Copper Resistivity (Ω·m):", value=1.71211e-8, format="%.5e")
+
+    with col2:
+        mlt_input = st.number_input("Mean Length of Turn (MLT) in meters:", value=1.0, min_value=0.01, step=0.1, format="%.3f")
+        turns_input = st.number_input("Number of Turns per Pancake:", value=172, min_value=1, step=1)
+        pancakes_input = st.number_input("Number of Pancakes:", value=2, min_value=1, step=1)
+
+    if st.button("Calculate Resistance", type="primary"):
+        # Convert dimensions to metric for calculation
+        w_val = float(w_input)
+        z_val = float(z_input)
+
+        if unit == "Imperial (inch/thou)":
+            w_mm = w_val * 25.4
+            z_mm = z_val * 0.0254
+        else:
+            w_mm = w_val
+            z_mm = z_val
+
+        # L = MLT * Turns * Pancakes
+        total_length_m = mlt_input * turns_input * pancakes_input
+        
+        # A = Width * Thickness (convert mm² to m²)
+        area_m2 = (w_mm / 1000.0) * (z_mm / 1000.0)
+
+        if area_m2 > 0:
+            resistance = rho_cu * (total_length_m / area_m2)
+            
+            st.success(f"**Total Resistance:** {resistance:.6f} Ω")
+            st.info(f"**Total Conductor Length:** {total_length_m:.2f} m")
+            st.info(f"**Cross-Sectional Area:** {(w_mm * z_mm):.3f} mm²")
+        else:
+            st.error("Error: Cross-sectional area must be greater than zero.")
+
+    st.divider()
+    st.caption("⚡ **Simple Coil Resistance Tool v1.0**\nDesigned by Bimo Adhi Prastya")
