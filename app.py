@@ -339,16 +339,23 @@ elif app_mode == "Maximum Current & Sizing Calculator":
     
     # --- FORMULAS PROMINENTLY AT THE TOP ---
     st.info("### Governing Formulas")
-    st.latex(r"I_{max} = 16.86 \times Z \times \sqrt{K \times W}")
-    st.latex(r"W = \frac{(I_{max} / (16.86 \times Z))^2}{K}")
-    st.latex(r"Z = \frac{I_{max}}{16.86 \times \sqrt{K \times W}}")
-    st.caption("*Where: $I$ = Current (A), $W$ = Width (mm), $Z$ = Thickness (mm), $K$ = Cooling Plates*")
+    st.latex(r"I_{max} = C \times Z \times \sqrt{K \times W}")
+    st.latex(r"W = \frac{(I_{max} / (C \times Z))^2}{K}")
+    st.latex(r"Z = \frac{I_{max}}{C \times \sqrt{K \times W}}")
+    st.caption("*Where: $I$ = Current (A), $W$ = Width (mm), $Z$ = Thickness (mm), $K$ = Cooling Plates, $C$ = Coil Factor*")
     st.divider()
 
-    # 1. Mode Selection
+    # 1. Mode & Coil Type Selection
     calc_mode = st.radio("What do you want to calculate?", 
                          ["Maximum Current", "Required Copper Width", "Required Copper Thickness"], 
                          horizontal=True)
+    
+    coil_type = st.radio("Coil Type (Factor C):", 
+                         ["Standard (16.86)", "High Performance (25.20)"], 
+                         horizontal=True)
+                         
+    # Set the mathematical factor based on selection
+    coil_factor = 16.86 if "Standard" in coil_type else 25.20
     
     # 2. Unit Toggle
     unit = st.radio("Measurement Units:", ["Metric (mm)", "Imperial (inch/thou)"], horizontal=True)
@@ -394,7 +401,7 @@ elif app_mode == "Maximum Current & Sizing Calculator":
                 w_mm = to_metric_w(float(w_input))
                 z_mm = to_metric_z(float(z_input))
                 
-                max_c = 16.86 * z_mm * math.sqrt(k * w_mm)
+                max_c = coil_factor * z_mm * math.sqrt(k * w_mm)
                 density = max_c / (w_mm * z_mm)
                 
                 st.success(f"**Recommended Max Current:** {max_c:.2f} A")
@@ -403,8 +410,8 @@ elif app_mode == "Maximum Current & Sizing Calculator":
             elif calc_mode == "Required Copper Width":
                 z_mm = to_metric_z(float(z_input))
                 
-                # Formula: W = (I / (16.86 * Z))^2 / K
-                w_req_mm = (i_input / (16.86 * z_mm))**2 / k
+                # Formula: W = (I / (C * Z))^2 / K
+                w_req_mm = (i_input / (coil_factor * z_mm))**2 / k
                 w_final = from_metric_w(w_req_mm)
                 
                 density = i_input / (w_req_mm * z_mm)
@@ -416,8 +423,8 @@ elif app_mode == "Maximum Current & Sizing Calculator":
             elif calc_mode == "Required Copper Thickness":
                 w_mm = to_metric_w(float(w_input))
                 
-                # Formula: Z = I / (16.86 * sqrt(K * W))
-                z_req_mm = i_input / (16.86 * math.sqrt(k * w_mm))
+                # Formula: Z = I / (C * sqrt(K * W))
+                z_req_mm = i_input / (coil_factor * math.sqrt(k * w_mm))
                 z_final = from_metric_z(z_req_mm)
                 
                 density = i_input / (w_mm * z_req_mm)
@@ -431,4 +438,4 @@ elif app_mode == "Maximum Current & Sizing Calculator":
 
     # --- SIGNATURE ---
     st.divider()
-    st.caption("⚡ **Coil Current & Sizing Tool v1.1**\nDesigned by Bimo Adhi Prastya")
+    st.caption("⚡ **Coil Current & Sizing Tool v1.2**\nDesigned by Bimo Adhi Prastya")
