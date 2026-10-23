@@ -361,20 +361,34 @@ elif app_mode == "Maximum Current & Sizing Calculator":
     unit = st.radio("Measurement Units:", ["Metric (mm)", "Imperial (inch/thou)"], horizontal=True)
 
     if unit == "Metric (mm)":
-        width_opts = ["50.8", "38.1", "16.0", "11.0"]
-        thick_opts = ["0.2", "0.787", "1.0", "1.194", "1.245", "1.372"]
+        width_opts = ["50.8", "38.1", "16.0", "11.0", "Custom..."]
+        thick_opts = ["0.2", "0.254", "0.787", "1.0", "1.194", "1.245", "1.372", "Custom..."]
     else:
-        width_opts = ["2.0", "1.5", "0.630", "0.433"]
-        thick_opts = ["7.87", "31", "39.37", "47", "49", "54"]
+        width_opts = ["2.0", "1.5", "0.630", "0.433", "Custom..."]
+        thick_opts = ["7.87", "10.0", "31", "39.37", "47", "49", "54", "Custom..."]
 
     col1, col2 = st.columns(2)
 
     with col1:
         if calc_mode in ["Maximum Current", "Required Copper Thickness"]:
-            w_input = st.selectbox("Copper Strip Width (W):", width_opts) if calc_mode == "Maximum Current" else st.number_input("Copper Strip Width (W):", value=float(width_opts[0]), format="%.3f")
+            if calc_mode == "Maximum Current":
+                w_sel = st.selectbox("Copper Strip Width (W):", width_opts)
+                if w_sel == "Custom...":
+                    w_input = st.number_input("Enter Custom Width (W):", value=10.0, format="%.3f")
+                else:
+                    w_input = float(w_sel)
+            else:
+                w_input = st.number_input("Copper Strip Width (W):", value=float(width_opts[0]), format="%.3f")
             
         if calc_mode in ["Maximum Current", "Required Copper Width"]:
-            z_input = st.selectbox("Copper Strip Thickness (Z):", thick_opts) if calc_mode == "Maximum Current" else st.number_input("Copper Strip Thickness (Z):", value=float(thick_opts[1]), format="%.3f")
+            if calc_mode == "Maximum Current":
+                z_sel = st.selectbox("Copper Strip Thickness (Z):", thick_opts)
+                if z_sel == "Custom...":
+                    z_input = st.number_input("Enter Custom Thickness (Z):", value=1.0, format="%.3f")
+                else:
+                    z_input = float(z_sel)
+            else:
+                z_input = st.number_input("Copper Strip Thickness (Z):", value=float(thick_opts[1]), format="%.3f")
             
         if calc_mode in ["Required Copper Width", "Required Copper Thickness"]:
             i_input = st.number_input("Target Maximum Current (A):", value=50.0, min_value=0.1, step=1.0)
@@ -423,7 +437,7 @@ elif app_mode == "Maximum Current & Sizing Calculator":
             st.error("Error in calculation. Please check your inputs.")
 
     st.divider()
-    st.caption("⚡ **Coil Current & Sizing Tool v1.2**\nDesigned by Bimo Adhi Prastya")
+    st.caption("⚡ **Coil Current & Sizing Tool v1.3**\nDesigned by Bimo Adhi Prastya")
 
 # =====================================================================
 # TOOL 3: SIMPLE COIL RESISTANCE CALCULATOR
@@ -440,17 +454,27 @@ elif app_mode == "Simple Coil Resistance Calculator":
     unit = st.radio("Measurement Units:", ["Metric (mm)", "Imperial (inch/thou)"], horizontal=True)
 
     if unit == "Metric (mm)":
-        width_opts = ["50.8", "38.1", "16.0", "11.0"]
-        thick_opts = ["0.2", "0.787", "1.0", "1.194", "1.245", "1.372"]
+        width_opts = ["50.8", "38.1", "16.0", "11.0", "Custom..."]
+        thick_opts = ["0.2", "0.254", "0.787", "1.0", "1.194", "1.245", "1.372", "Custom..."]
     else:
-        width_opts = ["2.0", "1.5", "0.630", "0.433"]
-        thick_opts = ["7.87", "31", "39.37", "47", "49", "54"]
+        width_opts = ["2.0", "1.5", "0.630", "0.433", "Custom..."]
+        thick_opts = ["7.87", "10.0", "31", "39.37", "47", "49", "54", "Custom..."]
 
     col1, col2 = st.columns(2)
 
     with col1:
-        w_input = st.selectbox("Copper Strip Width (W):", width_opts)
-        z_input = st.selectbox("Copper Strip Thickness (Z):", thick_opts)
+        w_sel = st.selectbox("Copper Strip Width (W):", width_opts)
+        if w_sel == "Custom...":
+            w_input = st.number_input("Enter Custom Width (W):", value=10.0, format="%.3f")
+        else:
+            w_input = float(w_sel)
+
+        z_sel = st.selectbox("Copper Strip Thickness (Z):", thick_opts)
+        if z_sel == "Custom...":
+            z_input = st.number_input("Enter Custom Thickness (Z):", value=1.0, format="%.3f")
+        else:
+            z_input = float(z_sel)
+            
         rho_cu = st.number_input("Copper Resistivity (Ω·m):", value=1.71211e-8, format="%.5e")
 
     with col2:
@@ -459,7 +483,6 @@ elif app_mode == "Simple Coil Resistance Calculator":
         pancakes_input = st.number_input("Number of Pancakes:", value=2, min_value=1, step=1)
 
     if st.button("Calculate Resistance", type="primary"):
-        # Convert dimensions to metric for calculation
         w_val = float(w_input)
         z_val = float(z_input)
 
@@ -470,10 +493,7 @@ elif app_mode == "Simple Coil Resistance Calculator":
             w_mm = w_val
             z_mm = z_val
 
-        # L = MLT * Turns * Pancakes
         total_length_m = mlt_input * turns_input * pancakes_input
-        
-        # A = Width * Thickness (convert mm² to m²)
         area_m2 = (w_mm / 1000.0) * (z_mm / 1000.0)
 
         if area_m2 > 0:
@@ -486,4 +506,4 @@ elif app_mode == "Simple Coil Resistance Calculator":
             st.error("Error: Cross-sectional area must be greater than zero.")
 
     st.divider()
-    st.caption("⚡ **Simple Coil Resistance Tool v1.0**\nDesigned by Bimo Adhi Prastya")
+    st.caption("⚡ **Simple Coil Resistance Tool v1.1**\nDesigned by Bimo Adhi Prastya")
